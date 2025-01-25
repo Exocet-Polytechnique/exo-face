@@ -23,7 +23,6 @@
                 </tr>
             </tbody>
         </table>
-
     </div>
 </template>
 
@@ -84,6 +83,6 @@ export default {
   padding-left: 0.3vh;
   padding-bottom: 0.3vh;
   text-align: left;
-  font-size: 4vh;
+  font-size: 5vh;
 }
 </style>
