@@ -53,7 +53,7 @@ export default {
     margin: 0.5vh;
     padding: 0;
     text-align: left;
-    font-size: 5vh;
+    font-size: 6vh;
     color: #313239;
 }
 

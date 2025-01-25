@@ -5,7 +5,7 @@
         <BatteryComponent :data="batteryData" :modules-in-danger="modulesInDanger"/>
       </div>
       <div id="telemetry-card" class="grid-item">
-        <h1>Telemetry</h1>
+        <TelemetryComponent :data="telemetryData"/>
       </div>
       <div id="position-card" class="grid-item">
         <PositionComponent :data="positionData"/>
@@ -19,12 +19,14 @@
 
 import BatteryComponent from './components/Battery.vue';
 import PositionComponent from './components/Position.vue';
+import TelemetryComponent from './components/Telemetry.vue';
 
 export default {
   name: 'App',
   components: {
     BatteryComponent,
     PositionComponent,
+    TelemetryComponent
   },
   data(){
     return{
@@ -37,7 +39,8 @@ export default {
         { id: 6, status: "Inactive", duration: "N/A", voltage: "0.00", current: "0.00", temperature: "22" },
       ],
       modulesInDanger: [2, 4, 6],
-      positionData:{latitude: 45.502991, longitude: -73613991}
+      positionData:{latitude: 45.502991, longitude: -73.613991},
+      telemetryData:{speed: 80.0, h2: 60}
     }
   }
 }
