@@ -2,6 +2,8 @@ use std::clone;
 
 use rocket::futures::{SinkExt, StreamExt};
 
+mod boat_data;
+
 #[macro_use] extern crate rocket;
 
 #[get("/")]
