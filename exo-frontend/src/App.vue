@@ -46,14 +46,14 @@ export default {
   mounted(){
 
     // Connect to the WebSocket
-    this.socket = new WebSocket('ws://127.0.0.1:8000/ws');
+    this.socket = new WebSocket('ws://127.0.0.1:8000/echo');
 
     this.socket.onmessage = (event) => {
       console.log(event.data);
     }
 
     this.socket.onopen = () => {
-      console.log('Connected to the WebSocket server.');
+      this.socket.send('Hello from the client!');
     }
 
     this.socket.onerror = () => {
