@@ -30,30 +30,48 @@ export default {
   },
   data(){
     return{
-      batteryData: [
-        { id: 1, status: "Active", duration: "2h", voltage: "3.70", current: "1.23", temperature: "25" },
-        { id: 2, status: "Inactive", duration: "N/A", voltage: "0.00", current: "0.00", temperature: "22" },
-        { id: 3, status: "Active", duration: "2h", voltage: "3.70", current: "1.23", temperature: "25" },
-        { id: 4, status: "Inactive", duration: "N/A", voltage: "0.00", current: "0.00", temperature: "22" },
-        { id: 5, status: "Active", duration: "2h", voltage: "3.70", current: "1.23", temperature: "25" },
-        { id: 6, status: "Inactive", duration: "N/A", voltage: "0.00", current: "0.00", temperature: "22" },
-      ],
-      modulesInDanger: [2, 4, 6],
-      positionData:{latitude: 45.502991, longitude: -73.613991},
-      telemetryData:{speed: 80.0, h2: 60}
+      batteryData: [],
+      modulesInDanger: [],
+      positionData:{latitude: null, longitude: null},
+      telemetryData:{speed: null, h2: null}
     }
   },
   mounted(){
 
     // Connect to the WebSocket
-    this.socket = new WebSocket('ws://127.0.0.1:8000/echo');
+    this.socket = new WebSocket('ws://127.0.0.1:8000/');
 
     this.socket.onmessage = (event) => {
-      console.log(event.data);
+
+      const object = JSON.parse(event.data);
+      // Mapping the received data
+      this.batteryData = object.modules.map((module) => ({
+        id: module.id,
+        status: module.status,
+        duration: module.estimated_life ? `${module.estimated_life}h` : "N/A",
+        voltage: module.voltage.toFixed(2),
+        current: module.current.toFixed(2),
+        temperature: module.temperature.toFixed(0),
+      }));
+
+      this.modulesInDanger = object.modules
+        .filter((module) => module.status !== "Active")
+        .map((module) => module.id);
+      //TODO: Use real calculations to determine whether the data is valid
+
+      this.positionData = {
+        latitude: object.latitude,
+        longitude: object.longitude,
+      };
+
+      this.telemetryData = {
+        speed: object.speed,
+        h2: object.hydrogen_level,
+      };
     }
 
     this.socket.onopen = () => {
-      this.socket.send('Hello from the client!');
+      this.socket.send('Ping');
     }
 
     this.socket.onerror = () => {

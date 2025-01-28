@@ -6,4 +6,5 @@ edition = "2021"
 [dependencies]
 rocket = "0.5.1"
 serde = "1.0.217"
+serde_json = "1.0.138"
 ws = { package = "rocket_ws", version = "0.1.1" }

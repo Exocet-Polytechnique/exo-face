@@ -4,10 +4,10 @@ use serde::{Serialize, Deserialize};
 pub struct ModuleData{
     pub id: i32,
     pub status: String,
-    pub estimaated_life: i32,
+    pub estimated_life: i32,
     pub voltage: i32,
     pub current: i32,
-    pub temperature: i32,
+    pub temperature: f32,
 }
 
 #[derive(Serialize, Deserialize)]
