@@ -42,6 +42,27 @@ export default {
       positionData:{latitude: 45.502991, longitude: -73.613991},
       telemetryData:{speed: 80.0, h2: 60}
     }
+  },
+  mounted(){
+
+    // Connect to the WebSocket
+    this.socket = new WebSocket('ws://127.0.0.1:8000/ws');
+
+    this.socket.onmessage = (event) => {
+      console.log(event.data);
+    }
+
+    this.socket.onopen = () => {
+      console.log('Connected to the WebSocket server.');
+    }
+
+    this.socket.onerror = () => {
+      console.error('An error occurred while connecting to the WebSocket server.');
+    }
+
+    this.socket.onclose = () => {
+      console.log('Disconnected from the WebSocket server.');
+    }
   }
 }
 </script>
