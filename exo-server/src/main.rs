@@ -7,7 +7,8 @@ mod boat_data;
 fn send_data(ws: ws::WebSocket) -> ws::Channel<'static> {
     ws.channel(move |mut stream| Box::pin(async move {
         loop{
-            //TODO: Replace this with actual data from the boat
+            //TODO: Replace this with actual data from the boat --> mocks
+            
             let data = serde_json::to_string(&boat_data::BoatData{
                 latitude: 14.0102020,
                 longitude: 18.1203912,
@@ -17,6 +18,10 @@ fn send_data(ws: ws::WebSocket) -> ws::Channel<'static> {
                     boat_data::ModuleData{
                         id: 1,
                         status: String::from("Active"),
+                        // batterie --> estimated_life
+                        // postion GPS
+                        // niveau de la batterie
+                        // avertir le pilote quand la batterie est a veille de se décharger 
                         estimated_life: 145,
                         voltage: 150,
                         current: 170,
