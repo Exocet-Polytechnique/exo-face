@@ -27,9 +27,9 @@ fn send_data(ws: ws::WebSocket) -> ws::Channel<'static> {
                 let hydrogen_level = ((80.0 - time * 0.01).round() as i32).max(0);
 
                 // Temperature Simulation
-                let temp1 = (23.0 + (time * 0.05).sin() * 5.0) as f32;
-                let temp2 = (23.0 + (time * 0.05 + 2.0).sin() * 4.0) as f32;
-                let temp3 = (24.0 + (time * 0.05 + 4.0).sin() * 3.0) as f32;
+                let temp1 = (40.0 + (time * 0.05).sin() * 5.0) as f32;
+                let temp2 = (30.0 + (time * 0.05 + 2.0).sin() * 4.0) as f32;
+                let temp3 = (32.0 + (time * 0.05 + 4.0).sin() * 3.0) as f32;
 
                 //Voltage Simulation
                 let volt_base = 48.0 * (hydrogen_level as f64 / 80.0);
@@ -38,9 +38,9 @@ fn send_data(ws: ws::WebSocket) -> ws::Channel<'static> {
                 let volt3 = (volt_base + (time * 0.04 + 4.0).sin() * 4.0 + 2.0) as i32;
 
                 //Current Simulation
-                let curr1 = (20.0 + (time * 0.03).sin() * 5.0) as i32;
-                let curr2 = (18.0 + (time * 0.03 + 2.0).sin() * 5.0) as i32;
-                let curr3 = (22.0 + (time * 0.03 + 4.0).sin() * 5.0) as i32;
+                let curr1 = (100.0 + (time * 0.03).sin() * 5.0) as i32;
+                let curr2 = (102.0 + (time * 0.03 + 2.0).sin() * 5.0) as i32;
+                let curr3 = (1.2 + (time * 0.03 + 4.0).sin() * 0.05) as i32;
 
                 //TODO: Replace this with actual data from the boat
                 let data = serde_json::to_string(&boat_data::BoatData {
