@@ -45,14 +45,32 @@ export default {
 
       const object = JSON.parse(event.data);
       // Mapping the received data
-      this.batteryData = object.modules.map((module) => ({
-        id: module.id,
-        status: module.status,
-        duration: module.estimated_life ? `${module.estimated_life}h` : "N/A",
-        voltage: module.voltage.toFixed(2),
-        current: module.current.toFixed(2),
-        temperature: module.temperature.toFixed(0),
-      }));
+      this.batteryData = object.modules.map((module) => {
+        let name = "";
+        let max = 65;
+
+        if (module.id === 1 || module.id === "1") {
+          name = "Télémétrie";
+          max = 65;
+        } else if (module.id === 2 || module.id === "2") {
+          name = "Auxiliaire";
+          max = 60;
+        } else if (module.id === 3 || module.id === "3") {
+          name = "Stockage";
+          max = 70;
+        }
+
+        return {
+          id: module.id,
+          displayName: name,
+          status: module.status,
+          duration: module.estimated_life ? `${module.estimated_life}h` : "N/A",
+          voltage: module.voltage.toFixed(2),
+          current: module.current.toFixed(2),
+          temperature: module.temperature.toFixed(0),
+          maxTemp: max
+        };
+      });
 
       this.modulesInDanger = object.modules
         .filter((module) => module.status !== "Active")
