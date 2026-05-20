@@ -33,6 +33,27 @@
         </tr>
       </tbody>
     </table>
+
+    <div id="fuel-cells-section">
+      <div class="section-content">
+        <table id="fuel-cells-table">
+          <thead>
+            <tr id="fuel-cells-table-header">
+              <th>Fuel Cell</th>
+              <th>Tension (V)</th>
+              <th>Puissance (kW)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="cell in fuelCells" :key="cell.id">
+              <td>{{ cell.name }}</td>
+              <td>{{ cell.tension }}</td>
+              <td>{{ cell.puissance }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -50,6 +71,14 @@ export default {
         required: false,
       default: () => []
     }
+  },
+  data() {
+    return {
+      fuelCells: [
+        { id: 1, name: 'Fuel Cell 1', tension: '48.00', puissance: '12.00' },
+        { id: 2, name: 'Fuel Cell 2', tension: '47.50', puissance: '11.50' }
+      ]
+    };
   },
   methods: {
     /**
@@ -83,23 +112,27 @@ export default {
     color: #313239;
 }
 
-#battery-table {
+#battery-table,
+#fuel-cells-table {
   width: 100%;
   border-collapse: collapse;
 }
 
-#battery-table th {
+#battery-table th,
+#fuel-cells-table th {
   padding: 0.3vh;
   text-align: left;
   color: white;
   font-size: 5vh;
 }
 
-#battery-table-header {
+#battery-table-header,
+#fuel-cells-table-header {
     background-color: #c12736;
 }
 
-#battery-table td { 
+#battery-table td,
+#fuel-cells-table td { 
   padding: 0.3vh; 
   text-align: left; 
   font-size: 5vh; 
@@ -135,6 +168,27 @@ export default {
   background-color: #f44336; 
   color: #fff;
   animation: pulse-bg-red 1.2s infinite; 
+}
+
+#fuel-cells-section {
+  margin-top: 1.5vh;
+}
+
+.section-header {
+  background-color: #c12736;
+  color: #fff;
+  padding: 0.8vh 1vh;
+  border-radius: 8px;
+  font-size: 4.5vh;
+  font-weight: 700;
+  margin-bottom: 0.8vh;
+}
+
+.section-content {
+  background-color: #f7f7f7;
+  padding: 1vh;
+  border-radius: 8px;
+  min-height: 8vh;
 }
 
 @keyframes pulse-bg-red {
