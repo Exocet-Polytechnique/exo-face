@@ -3,9 +3,17 @@ name = "exo-server"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+range_checked = []
+debug = []
+arb = []
+std = []
+
 [dependencies]
 rocket = "0.5.1"
-serde = "1.0.217"
-serde_json = "1.0.138"
-rand = "0.8.5"
-ws = { package = "rocket_ws", version = "0.1.1" }
+socketcan = "3.5.0"
+bitvec = { version = "1.0", default-features = false }
+serde = { version = "1.0", features = ["derive"] }
+
+[build-dependencies]
+dbc-codegen = "0.3"
