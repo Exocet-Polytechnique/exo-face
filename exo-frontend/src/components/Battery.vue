@@ -5,8 +5,7 @@
             <thead>
                 <tr id="battery-table-header">
                     <th>Module</th>
-                    <th>Statut</th>
-                    <th>Dur. Est.</th>
+                    <th>Charge</th>
                     <th>Voltage(V)</th>
                     <th>Courant(A)</th>
                     <th>Temp.(°C)</th>
@@ -15,7 +14,6 @@
             <tbody>
                 <tr v-for="row in data" :key="row.id" :class="{ danger: modulesInDanger.includes(row.id)}">
                     <td>{{ row.id }}</td>
-                    <td>{{ row.status }}</td>
                     <td>{{ row.duration }}</td>
                     <td>{{ row.voltage }}</td>
                     <td>{{ row.current }}</td>

@@ -4,12 +4,6 @@
       <div id="battery-card">
         <BatteryComponent :data="batteryData" :modules-in-danger="modulesInDanger"/>
       </div>
-      <div id="telemetry-card" class="grid-item">
-        <TelemetryComponent :data="telemetryData"/>
-      </div>
-      <div id="position-card" class="grid-item">
-        <PositionComponent :data="positionData"/>
-      </div>
     </div>
 
   </div>
@@ -18,22 +12,16 @@
 <script>
 
 import BatteryComponent from './components/Battery.vue';
-import PositionComponent from './components/Position.vue';
-import TelemetryComponent from './components/Telemetry.vue';
 
 export default {
   name: 'App',
   components: {
     BatteryComponent,
-    PositionComponent,
-    TelemetryComponent
   },
   data(){
     return{
       batteryData: [],
       modulesInDanger: [],
-      positionData:{latitude: null, longitude: null},
-      telemetryData:{speed: null, h2: null}
     }
   },
   mounted(){
@@ -58,16 +46,6 @@ export default {
         .filter((module) => module.status !== "Active")
         .map((module) => module.id);
       //TODO: Use real calculations to determine whether the data is valid
-
-      this.positionData = {
-        latitude: object.latitude,
-        longitude: object.longitude,
-      };
-
-      this.telemetryData = {
-        speed: object.speed,
-        h2: object.hydrogen_level,
-      };
     }
 
     this.socket.onopen = () => {
@@ -93,8 +71,6 @@ body {
 
 #grid-container {
   display: grid;
-  grid-template-columns: 1fr 1fr 2fr;
-  grid-template-rows: 1fr 2fr;
   column-gap: 1vh;
   row-gap: 1vh;
   height: 98vh;
@@ -102,22 +78,6 @@ body {
 
 #battery-card {
   background-color: white;
-  grid-column: 1 / 4;
-  grid-row: 2 / 3; 
-  border-radius: 10px;
-}
-
-#telemetry-card {
-  background-color: white;
-  grid-column: 2 / 4;
-  grid-row: 1 / 2;
-  border-radius: 10px;
-}
-
-#position-card {
-  background-color: white;
-  grid-column: 1 / 2;
-  grid-row: 1 / 2;
   border-radius: 10px;
 }
 
