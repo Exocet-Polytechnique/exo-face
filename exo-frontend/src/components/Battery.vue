@@ -1,22 +1,18 @@
 <template>
     <div id="container">
         <h1 id="title">Batteries</h1>
-        <table id="battery-table" cla>
+        <table id="battery-table">
             <thead>
                 <tr id="battery-table-header">
                     <th>Module</th>
-                    <th>Statut</th>
-                    <th>Dur. Est.</th>
                     <th>Voltage(V)</th>
                     <th>Courant(A)</th>
                     <th>Temp.(°C)</th>
                 </tr>
             </thead>
             <tbody>
-                <tr v-for="row in data" :key="row.id" :class="{ danger: modulesInDanger.includes(row.id)}">
+                <tr v-for="row in data" :key="row.id ">
                     <td>{{ row.id }}</td>
-                    <td>{{ row.status }}</td>
-                    <td>{{ row.duration }}</td>
                     <td>{{ row.voltage }}</td>
                     <td>{{ row.current }}</td>
                     <td>{{ row.temperature }}</td>
@@ -34,10 +30,6 @@ export default {
     data: {
         type: Array,
         required: true
-    },
-    modulesInDanger:{
-        type: Array,
-        required: false
     }
   }
 }

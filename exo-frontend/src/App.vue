@@ -2,13 +2,13 @@
   <div id="app">
     <div id="grid-container" class="grid-item">
       <div id="battery-card">
-        <BatteryComponent :data="batteryData" :modules-in-danger="modulesInDanger"/>
+        <BatteryComponent :data="batteryData"/>
       </div>
       <div id="telemetry-card" class="grid-item">
         <TelemetryComponent :data="telemetryData"/>
       </div>
       <div id="position-card" class="grid-item">
-        <PositionComponent :data="positionData"/>
+        <PositionComponent/>
       </div>
     </div>
 
@@ -31,7 +31,6 @@ export default {
   data(){
     return{
       batteryData: [],
-      modulesInDanger: [],
       positionData:{latitude: null, longitude: null},
       telemetryData:{speed: null, h2: null}
     }
@@ -45,24 +44,14 @@ export default {
 
       const object = JSON.parse(event.data);
       // Mapping the received data
-      this.batteryData = object.modules.map((module) => ({
-        id: module.id,
-        status: module.status,
-        duration: module.estimated_life ? `${module.estimated_life}h` : "N/A",
-        voltage: module.voltage.toFixed(2),
-        current: module.current.toFixed(2),
-        temperature: module.temperature.toFixed(0),
-      }));
-
-      this.modulesInDanger = object.modules
-        .filter((module) => module.status !== "Active")
-        .map((module) => module.id);
-      //TODO: Use real calculations to determine whether the data is valid
-
-      this.positionData = {
-        latitude: object.latitude,
-        longitude: object.longitude,
-      };
+      this.batteryData = object.modules
+        .filter((module) => module.id !== 0)
+        .map((module) => ({
+          id: module.id,
+          voltage: module.voltage,
+          current: module.current,
+          temperature: module.temperature.toFixed(0),
+        }));
 
       this.telemetryData = {
         speed: object.speed,
