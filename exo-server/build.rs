@@ -4,7 +4,7 @@ use std::fs;
 
 fn main() {
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
-    let dbc_path = manifest_dir.join("../../exo-can/exo_can.dbc");
+    let dbc_path = manifest_dir.join("../exo-can/exo_can.dbc");
     let dbc_content = fs::read(&dbc_path).unwrap();
     
     println!("cargo:rerun-if-changed={}", dbc_path.display());

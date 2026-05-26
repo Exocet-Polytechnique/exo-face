@@ -119,6 +119,15 @@ fn stream(ws: ws::WebSocket, state: &rocket::State<SharedState>) -> ws::Channel<
 fn rocket() -> _ {
     let state: SharedState = Arc::new(Mutex::new(BoatData::default()));
 
+
+    // inject test data
+    {
+        let mut s = state.lock().unwrap();
+        apply_d_frame(&mut s, 0, dtype::SPEED, f64::to_bits(42.5));
+        apply_d_frame(&mut s, 1, dtype::VOLTAGE, 3700);
+        apply_d_frame(&mut s, 1, dtype::TEMPERATURE, f32::to_bits(25.3) as u64);
+    }
+
     spawn_can_receiver(Arc::clone(&state));
 
     rocket::build()

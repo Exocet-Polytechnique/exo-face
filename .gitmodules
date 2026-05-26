@@ -1,0 +1,6 @@
+[submodule "exo-server/exo-can"]
+	path = exo-server/exo-can
+	url = git@github.com:Exocet-Polytechnique/exo-can.git
+[submodule "exo-can"]
+	path = exo-can
+	url = git@github.com:Exocet-Polytechnique/exo-can.git
