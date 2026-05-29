@@ -62,7 +62,7 @@ fn apply_d_frame(state: &mut BoatData, dest_module: u8, data_type: u8, raw: u64)
             match data_type {
                 dtype::VOLTAGE     => m.voltage = raw as i32,
                 dtype::CURRENT     => m.current = raw as i32,
-                dtype::TEMPERATURE => m.temperature = f32::from_bits(raw as u32),
+                dtype::TEMPERATURE => m.temperature = raw as f32,
                 _ => {}
             }
         }
