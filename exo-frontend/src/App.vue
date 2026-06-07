@@ -50,7 +50,7 @@ export default {
           id: module.id,
           voltage: module.voltage,
           current: module.current,
-          temperature: module.temperature,
+          temperature: module.temperature.toFixed(1),
         }));
 
       this.telemetryData = {
