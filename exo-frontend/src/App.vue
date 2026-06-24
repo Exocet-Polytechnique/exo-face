@@ -20,6 +20,7 @@
 import BatteryComponent from './components/Battery.vue';
 import PositionComponent from './components/Position.vue';
 import TelemetryComponent from './components/Telemetry.vue';
+import { setupLogCapture } from './logCapture';
 
 export default {
   name: 'App',
@@ -39,6 +40,9 @@ export default {
 
     // Connect to the WebSocket
     this.socket = new WebSocket('ws://127.0.0.1:8000/');
+
+    // Setup log capture to send console logs to server
+    setupLogCapture(this.socket);
 
     this.socket.onmessage = (event) => {
 
@@ -70,6 +74,9 @@ export default {
     this.socket.onclose = () => {
       console.log('Disconnected from the WebSocket server.');
     }
+
+    // For initial logging setup
+    console.log('Dashboard initialized and connected to server');
   }
 }
 </script>
