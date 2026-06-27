@@ -84,6 +84,7 @@ fn apply_d_frame(state: &mut BoatData, dest_module: u8, data_type: u8, raw: u64)
 fn spawn_can_receiver(state: SharedState, log_tx: Sender<(String, Value)>) {
     std::thread::spawn(move || {
         let socket = CanSocket::open("can0").expect("Failed to open can0");
+        let start = std::time::Instant::now();
         let msg = "CAN receiver: listening on can0 for d-frames...";
         eprintln!("{}", msg);
         let _ = log_tx.blocking_send(("info".to_string(), serde_json::json!({"msg": msg})));
@@ -94,6 +95,11 @@ fn spawn_can_receiver(state: SharedState, log_tx: Sender<(String, Value)>) {
                     let id = frame.raw_id();
                     if let Ok(msg) = dbc::Messages::from_can_message(id, frame.data()) {
                         if let Some((dest_module, data_type, raw)) = extract_d_frame(msg) {
+                            let uptime_ms = start.elapsed().as_millis();
+                            let _ = log_tx.blocking_send(("info".to_string(), serde_json::json!({
+                                "uptime_ms": uptime_ms,
+                                "msg": format!("CAN frame: id=0x{:X} dest_module={} data_type=0x{:02X} raw=0x{:X}", id, dest_module, data_type, raw)
+                            })));
                             let mut s = state.lock().unwrap();
                             apply_d_frame(&mut s, dest_module, data_type, raw);
                         }
