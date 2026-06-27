@@ -117,47 +117,38 @@ fn stream(ws: ws::WebSocket, state: &rocket::State<SharedState>, log_tx: &rocket
     let log_tx = Arc::clone(&**log_tx);
     ws.channel(move |mut stream| {
         Box::pin(async move {
-            // spawn a task to periodically send boat data
-            let state_send = Arc::clone(&state);
-            let mut stream_send = stream.clone();
-            let send_handle = tokio::spawn(async move {
-                loop {
-                    let json = {
-                        let s = state_send.lock().unwrap();
-                        serde_json::to_string(&*s).unwrap()
-                    };
-                    if stream_send.send(ws::Message::Text(json.into())).await.is_err() {
-                        break;
-                    }
-                    rocket::tokio::time::sleep(std::time::Duration::from_millis(SEND_INTERVAL_MS)).await;
-                }
-            });
+            let mut ticker = rocket::tokio::time::interval(std::time::Duration::from_millis(SEND_INTERVAL_MS));
 
-            // main receive loop for client messages (logs from frontend)
             loop {
-                if let Some(msg_result) = stream.next().await {
-                    match msg_result {
-                        Ok(ws::Message::Text(text)) => {
-                            // Try to parse as frontend log
-                            if let Ok(log_msg) = serde_json::from_str::<Value>(&text) {
-                                if log_msg.get("type").and_then(|t| t.as_str()) == Some("log") {
-                                    let level = log_msg.get("level").and_then(|l| l.as_str()).unwrap_or("info");
-                                    let message = log_msg.get("message").and_then(|m| m.as_str()).unwrap_or("");
-                                    let payload = serde_json::json!({"source": "frontend", "message": message});
-                                    let _ = log_tx.blocking_send((level.to_string(), payload));
+                rocket::tokio::select! {
+                    _ = ticker.tick() => {
+                        let json = {
+                            let s = state.lock().unwrap();
+                            serde_json::to_string(&*s).unwrap()
+                        };
+                        if stream.send(ws::Message::Text(json)).await.is_err() {
+                            break;
+                        }
+                    }
+                    msg = stream.next() => {
+                        match msg {
+                            Some(Ok(ws::Message::Text(text))) => {
+                                if let Ok(log_msg) = serde_json::from_str::<Value>(&text) {
+                                    if log_msg.get("type").and_then(|t| t.as_str()) == Some("log") {
+                                        let level = log_msg.get("level").and_then(|l| l.as_str()).unwrap_or("info");
+                                        let message = log_msg.get("message").and_then(|m| m.as_str()).unwrap_or("");
+                                        let payload = serde_json::json!({"source": "frontend", "message": message});
+                                        let _ = log_tx.send((level.to_string(), payload)).await;
+                                    }
                                 }
                             }
+                            Some(Ok(ws::Message::Close(..))) | None | Some(Err(_)) => break,
+                            _ => {}
                         }
-                        Ok(ws::Message::Close(..)) => break,
-                        Err(_) => break,
-                        _ => {}
                     }
-                } else {
-                    break;
                 }
             }
 
-            send_handle.abort();
             Ok(())
         })
     })
@@ -185,30 +176,33 @@ fn rocket() -> _ {
     let remote_user = env::var("LOG_REMOTE_USER").unwrap_or_else(|_| "pi".to_string());
     let remote_path = PathBuf::from(env::var("LOG_REMOTE_PATH").unwrap_or_else(|_| "/home/pi/logs".to_string()));
 
-    let mut log_dir = PathBuf::from(env::var("LOG_DIR").unwrap_or_else(|_| "./logs".to_string()));
+    let log_dir = PathBuf::from(env::var("LOG_DIR").unwrap_or_else(|_| "./logs".to_string()));
 
     // Spawn a thread that runs a tokio runtime to host async workers
     std::thread::spawn(move || {
         let rt = tokio::runtime::Builder::new_multi_thread().enable_all().build().unwrap();
+        let handle = rt.handle().clone();
         rt.block_on(async move {
             // start logging worker
-            tokio::spawn(logging::logging_worker(log_rx, log_dir.clone()));
+            handle.spawn(logging::logging_worker(log_rx, log_dir.clone()));
             // start ssh uploader worker
-            tokio::spawn(ssh_uploader::ssh_uploader_worker(upload_rx, remote_host.clone(), remote_user.clone(), remote_path.clone()));
+            handle.spawn(ssh_uploader::ssh_uploader_worker(upload_rx, remote_host.clone(), remote_user.clone(), remote_path.clone()));
 
             // sweeper: periodically scan log dir for files older than N seconds and send to uploader
             let sweeper_upload = upload_tx.clone();
             let sweeper_dir = log_dir.clone();
-            tokio::spawn(async move {
+            handle.spawn(async move {
                 use tokio::time::{sleep, Duration};
                 loop {
                     sleep(Duration::from_secs(30)).await;
+                    let today = format!("logs-{}.jsonl", chrono::Utc::now().format("%Y-%m-%d"));
                     if let Ok(mut dir) = tokio::fs::read_dir(&sweeper_dir).await {
                         while let Ok(Some(entry)) = dir.next_entry().await {
+                            // never upload the current day's file — it's still being written
+                            if entry.file_name().to_str() == Some(&today) { continue; }
                             if let Ok(meta) = entry.metadata().await {
                                 if let Ok(mtime) = meta.modified() {
                                     if let Ok(elapsed) = mtime.elapsed() {
-                                        // files older than 30s qualify
                                         if elapsed.as_secs() > 30 {
                                             let _ = sweeper_upload.send(entry.path()).await;
                                         }

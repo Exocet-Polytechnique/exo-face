@@ -1,4 +1,3 @@
-use anyhow::Result;
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 use serde_json::Value;
@@ -14,7 +13,7 @@ pub struct LogEntry {
     pub payload: Value,
 }
 
-pub async fn logging_worker(mut rx: Receiver<(String, Value)>, mut dir: PathBuf)
+pub async fn logging_worker(mut rx: Receiver<(String, Value)>, dir: PathBuf)
 {
     // Ensure directory exists
     let _ = tokio::fs::create_dir_all(&dir).await;
