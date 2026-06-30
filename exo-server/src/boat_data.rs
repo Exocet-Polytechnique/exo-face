@@ -10,7 +10,7 @@ pub struct ModuleData {
 
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub struct BoatData {
-    pub speed: f64,
+    pub speed: f32,
     pub hydrogen_level: i32,
     pub modules: Vec<ModuleData>,
 }
