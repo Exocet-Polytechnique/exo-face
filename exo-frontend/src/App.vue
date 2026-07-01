@@ -2,13 +2,13 @@
   <div id="app">
     <div id="grid-container" class="grid-item">
       <div id="battery-card">
-        <BatteryComponent :data="batteryData" :modules-in-danger="modulesInDanger"/>
+        <BatteryComponent :data="batteryData"/>
       </div>
       <div id="telemetry-card" class="grid-item">
         <TelemetryComponent :data="telemetryData"/>
       </div>
       <div id="position-card" class="grid-item">
-        <PositionComponent :data="positionData"/>
+        <PositionComponent/>
       </div>
     </div>
 
@@ -20,6 +20,7 @@
 import BatteryComponent from './components/Battery.vue';
 import PositionComponent from './components/Position.vue';
 import TelemetryComponent from './components/Telemetry.vue';
+import { setupLogCapture } from './logCapture';
 
 export default {
   name: 'App',
@@ -31,7 +32,6 @@ export default {
   data(){
     return{
       batteryData: [],
-      modulesInDanger: [],
       positionData:{latitude: null, longitude: null},
       telemetryData:{speed: null, h2: null}
     }
@@ -41,11 +41,14 @@ export default {
     // Connect to the WebSocket
     this.socket = new WebSocket('ws://127.0.0.1:8000/');
 
+    // Setup log capture to send console logs to server
+    setupLogCapture(this.socket);
+
     this.socket.onmessage = (event) => {
 
       const object = JSON.parse(event.data);
       // Mapping the received data
-      this.batteryData = object.modules.map((module) => {
+      this.batteryData = object.modules.filter((module) => module.id !== 0).map((module) => ({
         let name = "";
         let max = 65;
 
@@ -70,7 +73,7 @@ export default {
           temperature: module.temperature.toFixed(0),
           maxTemp: max
         };
-      });
+      }));
 
       this.modulesInDanger = object.modules
         .filter((module) => module.status !== "Active")
@@ -99,6 +102,9 @@ export default {
     this.socket.onclose = () => {
       console.log('Disconnected from the WebSocket server.');
     }
+
+    // For initial logging setup
+    console.log('Dashboard initialized and connected to server');
   }
 }
 </script>

@@ -2,8 +2,8 @@
     <div id="container">
         <h1 id="title">Position</h1>
         <div id="position">
-            <p>Lat.: {{ data.latitude }}</p>
-            <p>Long.: {{ data.longitude }}</p>
+            <p>Lat.: 0.0</p>
+            <p>Long.: 0.0</p>
         </div>
     </div>
 </template>
@@ -12,12 +12,6 @@
 
 export default {
   name: 'PositionComponent',
-  props: {
-    data: {
-        type: Object,
-        required: true
-    }
-  }
 }
 </script>
 
