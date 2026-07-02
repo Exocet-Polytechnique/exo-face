@@ -38,17 +38,17 @@ type SharedState = Arc<Mutex<BoatData>>;
 type LogSender = StdArc<Sender<(String, Value)>>;
 
 // Extract (dest_module, data_type, raw_data) only from d-frames; returns None for all other variants.
-fn extract_d_frame(msg: dbc::Messages) -> Option<(u8, u8, f32)> {
+fn extract_d_frame(msg: dbc::Messages) -> Option<(u8, u8, u32)> {
     match msg {
-        dbc::Messages::FrameP0d(m) => Some((m.dest_module_raw(), m.data_type_raw(), m.data_raw() as f32)),
-        dbc::Messages::FrameP1d(m) => Some((m.dest_module_raw(), m.data_type_raw(), m.data_raw() as f32)),
-        dbc::Messages::FrameP2d(m) => Some((m.dest_module_raw(), m.data_type_raw(), m.data_raw() as f32)),
-        dbc::Messages::FrameP3d(m) => Some((m.dest_module_raw(), m.data_type_raw(), m.data_raw() as f32)),
-        dbc::Messages::FrameP4d(m) => Some((m.dest_module_raw(), m.data_type_raw(), m.data_raw() as f32)),
-        dbc::Messages::FrameP5d(m) => Some((m.dest_module_raw(), m.data_type_raw(), m.data_raw() as f32)),
-        dbc::Messages::FrameP6d(m) => Some((m.dest_module_raw(), m.data_type_raw(), m.data_raw() as f32)),
-        dbc::Messages::FrameP7d(m) => Some((m.dest_module_raw(), m.data_type_raw(), m.data_raw() as f32)),
-        dbc::Messages::FrameP8d(m) => Some((m.dest_module_raw(), m.data_type_raw(), m.data_raw() as f32)),
+        dbc::Messages::FrameP0d(m) => Some((m.dest_module_raw(), m.data_type_raw(), m.data_raw() as u32)),
+        dbc::Messages::FrameP1d(m) => Some((m.dest_module_raw(), m.data_type_raw(), m.data_raw() as u32)),
+        dbc::Messages::FrameP2d(m) => Some((m.dest_module_raw(), m.data_type_raw(), m.data_raw() as u32)),
+        dbc::Messages::FrameP3d(m) => Some((m.dest_module_raw(), m.data_type_raw(), m.data_raw() as u32)),
+        dbc::Messages::FrameP4d(m) => Some((m.dest_module_raw(), m.data_type_raw(), m.data_raw() as u32)),
+        dbc::Messages::FrameP5d(m) => Some((m.dest_module_raw(), m.data_type_raw(), m.data_raw() as u32)),
+        dbc::Messages::FrameP6d(m) => Some((m.dest_module_raw(), m.data_type_raw(), m.data_raw() as u32)),
+        dbc::Messages::FrameP7d(m) => Some((m.dest_module_raw(), m.data_type_raw(), m.data_raw() as u32)),
+        dbc::Messages::FrameP8d(m) => Some((m.dest_module_raw(), m.data_type_raw(), m.data_raw() as u32)),
         _ => None,
     }
 }
@@ -56,10 +56,10 @@ fn extract_d_frame(msg: dbc::Messages) -> Option<(u8, u8, f32)> {
 // Apply a decoded d-frame to the shared BoatData.
 // dest_module is 1-indexed; module 0 carries global boat data.
 // TODO: adjust the f64/f32 bit reinterpretation if your protocol uses a different encoding.
-fn apply_d_frame(state: &mut BoatData, dest_module: u8, data_type: u8, raw: f32) {
+fn apply_d_frame(state: &mut BoatData, dest_module: u8, data_type: u8, raw: u32) {
     match (dest_module, data_type) {
-        (0, dtype::SPEED) => state.speed = raw as u32,
-        (0, dtype::HYDROGEN_LEVEL) => state.hydrogen_level = raw as u32,
+        (0, dtype::SPEED) => state.speed = raw,
+        (0, dtype::HYDROGEN_LEVEL) => state.hydrogen_level = raw,
         (module, dtype::VOLTAGE) | (module, dtype::CURRENT) | (module, dtype::TEMPERATURE) => {
             let idx = module as usize;
             if idx == 0 { return; }
@@ -70,9 +70,9 @@ fn apply_d_frame(state: &mut BoatData, dest_module: u8, data_type: u8, raw: f32)
             }
             let m = &mut state.modules[idx];
             match data_type {
-                dtype::VOLTAGE     => m.voltage = raw,
-                dtype::CURRENT     => m.current = raw,
-                dtype::TEMPERATURE => m.temperature = raw,
+                dtype::VOLTAGE     => m.voltage = f32::from_bits(raw),
+                dtype::CURRENT     => m.current = f32::from_bits(raw),
+                dtype::TEMPERATURE => m.temperature = f32::from_bits(raw),
                 _ => {}
             }
         }
