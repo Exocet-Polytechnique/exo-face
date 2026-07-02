@@ -2,15 +2,15 @@ use serde::{Serialize, Deserialize};
 
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub struct ModuleData {
-    pub id: i32,
-    pub voltage: i32,
-    pub current: i32,
+    pub id: u32,
+    pub voltage: f32,
+    pub current: f32,
     pub temperature: f32,
 }
 
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub struct BoatData {
-    pub speed: f32,
-    pub hydrogen_level: i32,
+    pub speed: u32,
+    pub hydrogen_level: u32,
     pub modules: Vec<ModuleData>,
 }
