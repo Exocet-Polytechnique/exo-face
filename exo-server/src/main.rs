@@ -57,9 +57,10 @@ fn extract_d_frame(msg: dbc::Messages) -> Option<(u8, u8, u32)> {
 // dest_module is 1-indexed; module 0 carries global boat data.
 // TODO: adjust the f64/f32 bit reinterpretation if your protocol uses a different encoding.
 fn apply_d_frame(state: &mut BoatData, dest_module: u8, data_type: u8, raw: u32) {
+    info!("{}", raw);
     match (dest_module, data_type) {
-        (0, dtype::SPEED) => state.speed = raw,
-        (0, dtype::HYDROGEN_LEVEL) => state.hydrogen_level = raw,
+        (0, dtype::SPEED) => state.speed = f32::from_bits(raw) as u32,
+        (0, dtype::HYDROGEN_LEVEL) => state.hydrogen_level = f32::from_bits(raw) as u32,
         (module, dtype::VOLTAGE) | (module, dtype::CURRENT) | (module, dtype::TEMPERATURE) => {
             let idx = module as usize;
             if idx == 0 { return; }
