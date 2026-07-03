@@ -38,7 +38,7 @@ type SharedState = Arc<Mutex<BoatData>>;
 type LogSender = StdArc<Sender<(String, Value)>>;
 
 // Extract (dest_module, data_type, raw_data) only from d-frames; returns None for all other variants.
-fn extract_d_frame(msg: dbc::Messages) -> Option<(u8, u8, u64)> {
+fn extract_d_frame(msg: &dbc::Messages) -> Option<(u8, u8, u64)> {
     match msg {
         dbc::Messages::FrameP0d(m) => Some((m.dest_module_raw(), m.data_type_raw(), m.data_raw())),
         dbc::Messages::FrameP1d(m) => Some((m.dest_module_raw(), m.data_type_raw(), m.data_raw())),
@@ -49,6 +49,23 @@ fn extract_d_frame(msg: dbc::Messages) -> Option<(u8, u8, u64)> {
         dbc::Messages::FrameP6d(m) => Some((m.dest_module_raw(), m.data_type_raw(), m.data_raw())),
         dbc::Messages::FrameP7d(m) => Some((m.dest_module_raw(), m.data_type_raw(), m.data_raw())),
         dbc::Messages::FrameP8d(m) => Some((m.dest_module_raw(), m.data_type_raw(), m.data_raw())),
+        _ => None,
+    }
+}
+
+// Extract (dest_module, error_type, error_raw) from error-frames; None otherwise.
+fn extract_error_frame(msg: &dbc::Messages) -> Option<(u8, u8, u64)> {
+    match msg {
+        // try common short form FrameP#e
+        dbc::Messages::FrameP0e(m) | dbc::Messages::FrameP0err(m) => Some((m.dest_module_raw(), m.error_type_raw(), m.error_raw())),
+        dbc::Messages::FrameP1e(m) | dbc::Messages::FrameP1err(m) => Some((m.dest_module_raw(), m.error_type_raw(), m.error_raw())),
+        dbc::Messages::FrameP2e(m) | dbc::Messages::FrameP2err(m) => Some((m.dest_module_raw(), m.error_type_raw(), m.error_raw())),
+        dbc::Messages::FrameP3e(m) | dbc::Messages::FrameP3err(m) => Some((m.dest_module_raw(), m.error_type_raw(), m.error_raw())),
+        dbc::Messages::FrameP4e(m) | dbc::Messages::FrameP4err(m) => Some((m.dest_module_raw(), m.error_type_raw(), m.error_raw())),
+        dbc::Messages::FrameP5e(m) | dbc::Messages::FrameP5err(m) => Some((m.dest_module_raw(), m.error_type_raw(), m.error_raw())),
+        dbc::Messages::FrameP6e(m) | dbc::Messages::FrameP6err(m) => Some((m.dest_module_raw(), m.error_type_raw(), m.error_raw())),
+        dbc::Messages::FrameP7e(m) | dbc::Messages::FrameP7err(m) => Some((m.dest_module_raw(), m.error_type_raw(), m.error_raw())),
+        dbc::Messages::FrameP8e(m) | dbc::Messages::FrameP8err(m) => Some((m.dest_module_raw(), m.error_type_raw(), m.error_raw())),
         _ => None,
     }
 }
@@ -93,8 +110,8 @@ fn spawn_can_receiver(state: SharedState, log_tx: Sender<(String, Value)>) {
             match socket.read_frame() {
                 Ok(CanFrame::Data(frame)) => {
                     let id = frame.raw_id();
-                    if let Ok(msg) = dbc::Messages::from_can_message(id, frame.data()) {
-                        if let Some((dest_module, data_type, raw)) = extract_d_frame(msg) {
+                    if let Ok(msg_enum) = dbc::Messages::from_can_message(id, frame.data()) {
+                        if let Some((dest_module, data_type, raw)) = extract_d_frame(&msg_enum) {
                             let uptime_ms = start.elapsed().as_millis();
                             let _ = log_tx.blocking_send(("info".to_string(), serde_json::json!({
                                 "uptime_ms": uptime_ms,
@@ -102,6 +119,50 @@ fn spawn_can_receiver(state: SharedState, log_tx: Sender<(String, Value)>) {
                             })));
                             let mut s = state.lock().unwrap();
                             apply_d_frame(&mut s, dest_module, data_type, raw);
+                        } else if let Some((dest_module, err_type, err_raw)) = extract_error_frame(&msg_enum) {
+                            // structured error frame
+                            let uptime_ms = start.elapsed().as_millis();
+                            let _ = log_tx.blocking_send(("error".to_string(), serde_json::json!({
+                                "uptime_ms": uptime_ms,
+                                "msg": format!("CAN error frame: id=0x{:X} dest_module={} error_type=0x{:02X} raw=0x{:X}", id, dest_module, err_type, err_raw)
+                            })));
+                            let idx = dest_module as usize;
+                            let mut s = state.lock().unwrap();
+                            // Grow modules vector if needed
+                            while s.modules.len() <= idx {
+                                let id = s.modules.len() as i32;
+                                s.modules.push(ModuleData { id, ..ModuleData::default() });
+                            }
+                            s.modules[idx].last_error_ms = uptime_ms as u64;
+                        } else {
+                            // Non-d frame: fallback — log debug and try to parse dest_module from Debug output
+                            let uptime_ms = start.elapsed().as_millis();
+                            let dbg = format!("{:?}", msg_enum);
+                            // send log entry with the raw debug for inspection
+                            let _ = log_tx.blocking_send(("error".to_string(), serde_json::json!({
+                                "uptime_ms": uptime_ms,
+                                "msg": "CAN non-d frame (possible error)",
+                                "frame": dbg
+                            })));
+
+                            // try to parse a dest_module number from the debug string
+                            if let Some(pos) = dbg.find("dest_module") {
+                                let rest = &dbg[pos..];
+                                if let Some(colon) = rest.find(':') {
+                                    let after = &rest[colon+1..];
+                                    let digits: String = after.chars().skip_while(|c| c.is_whitespace()).take_while(|c| c.is_digit(10)).collect();
+                                    if let Ok(module_num) = digits.parse::<u8>() {
+                                        let idx = module_num as usize;
+                                        let mut s = state.lock().unwrap();
+                                        // Grow modules vector if needed
+                                        while s.modules.len() <= idx {
+                                            let id = s.modules.len() as i32;
+                                            s.modules.push(ModuleData { id, ..ModuleData::default() });
+                                        }
+                                        s.modules[idx].last_error_ms = uptime_ms as u64;
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -128,11 +189,13 @@ fn stream(ws: ws::WebSocket, state: &rocket::State<SharedState>, log_tx: &rocket
             loop {
                 rocket::tokio::select! {
                     _ = ticker.tick() => {
-                        let json = {
+                        let payload = {
                             let s = state.lock().unwrap();
-                            serde_json::to_string(&*s).unwrap()
+                            let boat = serde_json::to_value(&*s).unwrap();
+                            let now_ms = start.elapsed().as_millis();
+                            serde_json::json!({"now_ms": now_ms, "boat": boat})
                         };
-                        if stream.send(ws::Message::Text(json)).await.is_err() {
+                        if stream.send(ws::Message::Text(payload.to_string())).await.is_err() {
                             break;
                         }
                     }

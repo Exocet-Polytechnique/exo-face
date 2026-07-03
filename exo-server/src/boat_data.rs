@@ -6,6 +6,8 @@ pub struct ModuleData {
     pub voltage: i32,
     pub current: i32,
     pub temperature: f32,
+    // timestamp in milliseconds since process start when last error was seen for this module
+    pub last_error_ms: u64,
 }
 
 #[derive(Serialize, Deserialize, Clone, Default)]

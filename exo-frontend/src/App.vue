@@ -2,7 +2,7 @@
   <div id="app">
     <div id="grid-container" class="grid-item">
       <div id="battery-card">
-        <BatteryComponent :data="batteryData"/>
+        <BatteryComponent :data="batteryData" :nowMs="nowMs" />
       </div>
       <div id="telemetry-card" class="grid-item">
         <TelemetryComponent :data="telemetryData"/>
@@ -33,9 +33,11 @@ export default {
     return{
       batteryData: [],
       positionData:{latitude: null, longitude: null},
-      telemetryData:{speed: null, h2: null}
+      telemetryData:{speed: null, h2: null},
+      nowMs: 0
     }
   },
+  created() {},
   mounted(){
 
     // Connect to the WebSocket
@@ -47,20 +49,25 @@ export default {
     this.socket.onmessage = (event) => {
 
       const object = JSON.parse(event.data);
+      const now_ms = object.now_ms || Date.now();
+      const boat = object.boat || object;
       // Mapping the received data
-      this.batteryData = object.modules
+      this.batteryData = boat.modules
         .filter((module) => module.id !== 0)
         .map((module) => ({
           id: module.id,
           voltage: module.voltage,
           current: module.current,
           temperature: module.temperature.toFixed(1),
+          last_error_ms: module.last_error_ms || 0
         }));
 
       this.telemetryData = {
-        speed: object.speed,
-        h2: object.hydrogen_level,
+        speed: boat.speed,
+        h2: boat.hydrogen_level,
       };
+
+      this.nowMs = now_ms;
     }
 
     this.socket.onopen = () => {

@@ -12,24 +12,35 @@
             </thead>
             <tbody>
                 <tr v-for="row in data" :key="row.id ">
-                    <td>{{ row.id }}</td>
+                    <td :class="{'blink': isBlinking(row)}">{{ row.id }}</td>
                     <td>{{ row.voltage }}</td>
                     <td>{{ row.current }}</td>
                     <td>{{ row.temperature }}</td>
-                </tr>
+                  </tr>
             </tbody>
         </table>
     </div>
 </template>
 
 <script>
-
 export default {
   name: 'BatteryComponent',
   props: {
     data: {
-        type: Array,
-        required: true
+      type: Array,
+      required: true
+    },
+    nowMs: {
+      type: Number,
+      required: false,
+      default: 0
+    }
+  },
+  methods: {
+    isBlinking(row) {
+      if (!row || !row.last_error_ms || !this.nowMs) return false;
+      const delta = this.nowMs - row.last_error_ms;
+      return delta >= 0 && delta < 5000; // blink for 5s
     }
   }
 }
@@ -76,5 +87,13 @@ export default {
   padding-bottom: 0.3vh;
   text-align: left;
   font-size: 5vh;
+}
+
+.blink {
+  animation: blink-bg 1s steps(2, start) 0s infinite;
+}
+
+@keyframes blink-bg {
+  50% { background-color: #fe7e44; }
 }
 </style>
