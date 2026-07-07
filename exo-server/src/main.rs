@@ -2,7 +2,6 @@
 extern crate rocket;
 
 use std::sync::{Arc, Mutex};
-use std::sync::atomic::{AtomicU8, Ordering};
 use rocket::futures::SinkExt;
 use socketcan::{CanFrame, CanSocket, EmbeddedFrame, Frame, Socket};
 use serde_json::Value;
@@ -26,9 +25,6 @@ mod dbc {
 
 // How often the WebSocket sender pushes a snapshot to the frontend
 const SEND_INTERVAL_MS: u64 = 1000;
-
-// How often the dashboard broadcasts its own CurrentState (LP_PCB05_P M1) as a liveness heartbeat.
-const HEARTBEAT_INTERVAL_MS: u64 = 2000;
 
 type SharedState = Arc<Mutex<BoatData>>;
 type LogSender = StdArc<Sender<(String, Value)>>;
@@ -56,7 +52,7 @@ fn log_rx_event(log_tx: &Sender<(String, Value)>, uptime_ms: u128, event: &orche
 }
 
 // --- Task 1 (CAN receiver thread): reads all frames, reacts to the Cockpit start/shutdown handshake ---
-fn spawn_can_receiver(log_tx: Sender<(String, Value)>, boat_state: Arc<AtomicU8>) {
+fn spawn_can_receiver(log_tx: Sender<(String, Value)>) {
     std::thread::spawn(move || {
         let socket = CanSocket::open("can0").expect("Failed to open can0");
         let start = std::time::Instant::now();
@@ -82,10 +78,6 @@ fn spawn_can_receiver(log_tx: Sender<(String, Value)>, boat_state: Arc<AtomicU8>
                                         _ => None,
                                     };
                                     if let Some(reply_state) = reply_state {
-                                        // Store immediately so the heartbeat thread picks it up even if
-                                        // this direct reply is lost; also send right away for a fast ack
-                                        // instead of waiting up to HEARTBEAT_INTERVAL_MS for the next tick.
-                                        boat_state.store(reply_state, Ordering::Relaxed);
                                         if let Err(e) = orchestrator::send_state(&socket, reply_state) {
                                             let _ = log_tx.blocking_send(("error".to_string(), serde_json::json!({
                                                 "msg": format!("Orchestrator: failed to send state reply: {}", e)
@@ -104,23 +96,6 @@ fn spawn_can_receiver(log_tx: Sender<(String, Value)>, boat_state: Arc<AtomicU8>
                     let _ = log_tx.blocking_send(("error".to_string(), serde_json::json!({"msg": msg})));
                 }
             }
-        }
-    });
-}
-
-// --- Task 1b (heartbeat thread): periodically broadcasts our own CurrentState (LP_PCB05_P M1)
-// so every PCB can tell the dashboard is alive and knows the current boat mode.
-fn spawn_heartbeat(boat_state: Arc<AtomicU8>, log_tx: Sender<(String, Value)>) {
-    std::thread::spawn(move || {
-        let socket = CanSocket::open("can0").expect("Failed to open can0 (heartbeat)");
-        loop {
-            let state = boat_state.load(Ordering::Relaxed);
-            if let Err(e) = orchestrator::send_state(&socket, state) {
-                let _ = log_tx.blocking_send(("error".to_string(), serde_json::json!({
-                    "msg": format!("Heartbeat: failed to send state: {}", e)
-                })));
-            }
-            std::thread::sleep(std::time::Duration::from_millis(HEARTBEAT_INTERVAL_MS));
         }
     });
 }
@@ -172,7 +147,6 @@ fn stream(ws: ws::WebSocket, state: &rocket::State<SharedState>, log_tx: &rocket
 #[launch]
 fn rocket() -> _ {
     let state: SharedState = Arc::new(Mutex::new(BoatData::default()));
-    let boat_state = Arc::new(AtomicU8::new(orchestrator::state::IDLE));
 
     // --- Setup async logging and uploader workers in a separate tokio runtime ---
     let (log_tx, log_rx) = tokio::sync::mpsc::channel::<(String, Value)>(1024);
@@ -229,9 +203,8 @@ fn rocket() -> _ {
     // Wrap log_tx in Arc for Rocket management
     let log_tx_arc: LogSender = StdArc::new(log_tx);
 
-    // start CAN receiver and the heartbeat broadcaster, sharing the current boat state between them
-    spawn_can_receiver((*log_tx_arc).clone(), Arc::clone(&boat_state));
-    spawn_heartbeat(boat_state, (*log_tx_arc).clone());
+    // start CAN receiver
+    spawn_can_receiver((*log_tx_arc).clone());
 
     rocket::build()
         .mount("/", routes![stream])
