@@ -3,7 +3,6 @@ extern crate rocket;
 
 use std::sync::{Arc, Mutex};
 use rocket::futures::SinkExt;
-use socketcan::{CanFrame, CanSocket, EmbeddedFrame, Frame, Socket};
 use serde_json::Value;
 use tokio::sync::mpsc::{Sender};
 use std::path::PathBuf;
@@ -11,9 +10,7 @@ use std::env;
 use std::sync::Arc as StdArc;
 use futures::stream::StreamExt;
 
-mod logging;
-mod ssh_uploader;
-mod orchestrator;
+pub mod tasks;
 
 mod boat_data;
 use boat_data::BoatData;
@@ -29,78 +26,7 @@ const SEND_INTERVAL_MS: u64 = 1000;
 type SharedState = Arc<Mutex<BoatData>>;
 type LogSender = StdArc<Sender<(String, Value)>>;
 
-fn log_rx_event(log_tx: &Sender<(String, Value)>, uptime_ms: u128, event: &orchestrator::CanRxEvent) {
-    use orchestrator::CanRxEvent::*;
-    let msg = match event {
-        Error { source, critical, code } => format!(
-            "CAN {} from {:?}: code=0x{:X}",
-            if *critical { "ERROR" } else { "warning" }, source, code
-        ),
-        ProcedureStatus { source, status_raw, kind_raw } => format!(
-            "CAN procedure status from {:?}: status=0x{:X} kind=0x{:X}", source, status_raw, kind_raw
-        ),
-        ProcedureState { source, state_raw } => format!(
-            "CAN state from {:?}: state=0x{:X}", source, state_raw
-        ),
-        ProcedureCommand { source, target, command_raw } => format!(
-            "CAN command from {:?} to {:?}: command=0x{:X}", source, target, command_raw
-        ),
-        Data { source } => format!("CAN data frame from {:?}", source),
-    };
-    let level = if matches!(event, Error { critical: true, .. }) { "error" } else { "info" };
-    let _ = log_tx.blocking_send((level.to_string(), serde_json::json!({"uptime_ms": uptime_ms, "msg": msg})));
-}
-
-// --- Task 1 (CAN receiver thread): reads all frames, reacts to the Cockpit start/shutdown handshake ---
-fn spawn_can_receiver(log_tx: Sender<(String, Value)>) {
-    std::thread::spawn(move || {
-        let socket = CanSocket::open("can0").expect("Failed to open can0");
-        let start = std::time::Instant::now();
-        let msg = "CAN receiver: listening on can0...";
-        eprintln!("{}", msg);
-        let _ = log_tx.blocking_send(("info".to_string(), serde_json::json!({"msg": msg})));
-
-        loop {
-            match socket.read_frame() {
-                Ok(CanFrame::Data(frame)) => {
-                    let id = frame.raw_id();
-                    if let Ok(msg) = dbc::Messages::from_can_message(id, frame.data()) {
-                        if let Some(event) = orchestrator::categorize(msg) {
-                            log_rx_event(&log_tx, start.elapsed().as_millis(), &event);
-
-                            if let orchestrator::CanRxEvent::ProcedureCommand { source, target, command_raw } = event {
-                                let addressed_to_us = matches!(target, orchestrator::Module::DriverInterface | orchestrator::Module::Broadcast);
-                                // If the command is addressed to the DriverInterface or is a broadcast
-                                if source == orchestrator::Module::Cockpit && addressed_to_us {
-                                    let reply_state = match command_raw {
-                                        orchestrator::command::START => Some(orchestrator::state::STARTED),
-                                        orchestrator::command::SHUTDOWN => Some(orchestrator::state::IDLE),
-                                        _ => None,
-                                    };
-                                    if let Some(reply_state) = reply_state {
-                                        if let Err(e) = orchestrator::send_state(&socket, reply_state) {
-                                            let _ = log_tx.blocking_send(("error".to_string(), serde_json::json!({
-                                                "msg": format!("Orchestrator: failed to send state reply: {}", e)
-                                            })));
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                Ok(_) => {}
-                Err(e) => {
-                    let msg = format!("CAN read error: {}", e);
-                    eprintln!("{}", msg);
-                    let _ = log_tx.blocking_send(("error".to_string(), serde_json::json!({"msg": msg})));
-                }
-            }
-        }
-    });
-}
-
-// --- Task 2 (WebSocket sender & receiver): pushes JSON snapshot and receives frontend logs ---
+// --- Task: WebSocket sender & receiver — pushes JSON snapshot and receives frontend logs ---
 #[get("/")]
 fn stream(ws: ws::WebSocket, state: &rocket::State<SharedState>, log_tx: &rocket::State<LogSender>) -> ws::Channel<'static> {
     let state = Arc::clone(state);
@@ -165,9 +91,9 @@ fn rocket() -> _ {
         let handle = rt.handle().clone();
         rt.block_on(async move {
             // start logging worker
-            handle.spawn(logging::logging_worker(log_rx, log_dir.clone()));
+            handle.spawn(tasks::logging::logging_worker(log_rx, log_dir.clone()));
             // start ssh uploader worker
-            handle.spawn(ssh_uploader::ssh_uploader_worker(upload_rx, remote_host.clone(), remote_user.clone(), remote_path.clone()));
+            handle.spawn(tasks::ssh_uploader::ssh_uploader_worker(upload_rx, remote_host.clone(), remote_user.clone(), remote_path.clone()));
 
             // sweeper: periodically scan log dir for files older than N seconds and send to uploader
             let sweeper_upload = upload_tx.clone();
@@ -204,7 +130,7 @@ fn rocket() -> _ {
     let log_tx_arc: LogSender = StdArc::new(log_tx);
 
     // start CAN receiver
-    spawn_can_receiver((*log_tx_arc).clone());
+    tasks::can::spawn_can_receiver((*log_tx_arc).clone());
 
     rocket::build()
         .mount("/", routes![stream])
