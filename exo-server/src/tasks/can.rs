@@ -3,6 +3,8 @@ use serde_json::Value;
 use tokio::sync::mpsc::Sender;
 
 use crate::dbc;
+use crate::boat_data::Alert;
+use crate::SharedState;
 
 // Module addresses, per exo-can/exo_can.dbc's `TargetModule` numbering (shared by every PCB).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -279,6 +281,74 @@ fn source_of(event: &CanRxEvent) -> Module {
     }
 }
 
+// Display name for the PCB alert panel. Hydrogen/Broadcast never reach here in practice.
+fn display_name(m: Module) -> &'static str {
+    match m {
+        Module::Cockpit => "Cockpit",
+        Module::TelemetryBattery => "Batterie de Télémétrie",
+        Module::HighPower => "Haute Puissance",
+        Module::DriverInterface => "Interface Pilote",
+        Module::Hydrogen | Module::Broadcast => "Inconnu",
+    }
+}
+
+// Human-readable titles for every (source, critical, code) combination defined in
+// exo_can.dbc's ErrorType/WarningType VAL_ tables (Hydrogen omitted — no longer used).
+fn error_title(source: Module, critical: bool, code: u16) -> &'static str {
+    match (source, critical, code) {
+        (Module::Cockpit, true, 0) => "Défaut du bus CAN",
+        (Module::Cockpit, true, 1) => "Défaut matériel",
+        (Module::Cockpit, false, 0) => "Délai CAN dépassé",
+
+        (Module::TelemetryBattery, true, 0) => "Défaut de la batterie",
+        (Module::TelemetryBattery, true, 1) => "Surchauffe",
+        (Module::TelemetryBattery, true, 2) => "Défaut du commutateur d'alimentation",
+        (Module::TelemetryBattery, false, 0) => "Charge faible",
+        (Module::TelemetryBattery, false, 1) => "Avertissement de température",
+
+        (Module::HighPower, true, 0) => "Température batterie auxiliaire",
+        (Module::HighPower, true, 1) => "Surutilisation pile à combustible",
+        (Module::HighPower, true, 2) => "Exception pile à combustible",
+        (Module::HighPower, true, 3) => "Surutilisation MPPT",
+        (Module::HighPower, true, 4) => "Exception MPPT",
+        (Module::HighPower, true, 5) => "Défaut d'isolation (IMD)",
+        (Module::HighPower, false, 0) => "Avertissement température batterie auxiliaire",
+        (Module::HighPower, false, 1) => "Avertissement puissance pile à combustible",
+        (Module::HighPower, false, 2) => "Avertissement MPPT",
+        (Module::HighPower, false, 3) => "Avertissement isolation (IMD)",
+
+        (Module::DriverInterface, true, 0) => "Défaut système",
+        (Module::DriverInterface, true, 1) => "Défaut CAN",
+        (Module::DriverInterface, false, 0) => "Avertissement de communication",
+
+        _ => "Erreur inconnue",
+    }
+}
+
+// Updates `source`'s row in the PCB alert panel with its latest reported error/warning.
+fn update_alert(state: &SharedState, source: Module, critical: bool, code: u16) {
+    let mut data = state.lock().unwrap();
+    if let Some(pcb) = data.pcb_status.iter_mut().find(|p| p.name == display_name(source)) {
+        pcb.alert = Some(Alert {
+            title: error_title(source, critical, code).to_string(),
+            severity: if critical { "error" } else { "warning" }.to_string(),
+        });
+    }
+}
+
+// Decodes the battery signals the UI cares about straight off the raw message, since
+// `categorize` only tags data frames with their source, not their decoded content.
+// Aux battery charge has no CAN signal yet — exo_can.dbc only defines AuxBatteryTemperature
+// for that PCB, a different quantity — so `aux_battery_charge` stays at its default until a
+// real signal is added.
+fn update_battery_gauges(state: &SharedState, msg: &mut dbc::Messages) {
+    if let dbc::Messages::LpPcb03D(m) = msg {
+        if let Ok(dbc::LpPcb03DSensor::M0(s)) = m.sensor() {
+            state.lock().unwrap().telemetry_battery_charge = s.batt_so_c() as f32 / 255.0 * 100.0;
+        }
+    }
+}
+
 // Fires when `pending`'s deadline has passed: reports every PCB that never confirmed, via a
 // self-originated HP_PCB05_E CAN frame and an application-level error log (for the future UI).
 fn report_missing_confirmations(socket: &CanSocket, log_tx: &Sender<(String, Value)>, pending: &PendingConfirmation) {
@@ -296,7 +366,7 @@ fn report_missing_confirmations(socket: &CanSocket, log_tx: &Sender<(String, Val
 
 // --- Task (CAN receiver thread): reads all frames, reacts to any PCB's start/shutdown command ---
 // Hydrogen is no longer used: its frames are still defined in the dbc, but ignored here entirely.
-pub fn spawn_can_receiver(log_tx: Sender<(String, Value)>) {
+pub fn spawn_can_receiver(log_tx: Sender<(String, Value)>, state: SharedState) {
     std::thread::spawn(move || {
         let socket = CanSocket::open("can0").expect("Failed to open can0");
         let start = std::time::Instant::now();
@@ -310,12 +380,17 @@ pub fn spawn_can_receiver(log_tx: Sender<(String, Value)>) {
             match socket.read_frame_timeout(std::time::Duration::from_millis(POLL_TICK_MS)) {
                 Ok(CanFrame::Data(frame)) => {
                     let id = frame.raw_id();
-                    if let Ok(msg) = dbc::Messages::from_can_message(id, frame.data()) {
+                    if let Ok(mut msg) = dbc::Messages::from_can_message(id, frame.data()) {
+                        update_battery_gauges(&state, &mut msg);
                         if let Some(event) = categorize(msg) {
                             if source_of(&event) == Module::Hydrogen {
                                 continue;
                             }
                             log_rx_event(&log_tx, start.elapsed().as_millis(), &event);
+
+                            if let CanRxEvent::Error { source, critical, code } = event {
+                                update_alert(&state, source, critical, code);
+                            }
 
                             // A PCB confirming the state change we're waiting on.
                             if let CanRxEvent::ProcedureState { source, state_raw } = event {

@@ -1,37 +1,37 @@
 <template>
     <div id="container">
-        <h1 id="title">Télémétrie</h1>
-        <div id="telemetry">
+        <h1 id="title">Batteries</h1>
+        <div id="gauges">
             <VueSpeedometer
-            :dimensionUnit="px"
-            :width="250"
-            :height="150"
-            :maxSegmentLabels="10"
-            :segments="10"
-            :needleHeightRatio="0.8"
-            :needleColor="'#c02737'"
-            :value="data.speed"
-            :maxValue="200"
-            :segmentColors='["#303238"]'
-            :paddingVertical="15"
-            valueTextFontSize="10vh"
-            valueTextFontWeight="500"
-            ></VueSpeedometer>
-            <VueSpeedometer
-            :dimensionUnit="px"
+            dimensionUnit="px"
             :width="250"
             :height="150"
             :maxSegmentLabels="5"
             :segments="5"
             :needleHeightRatio="0.5"
-            :value="data.h2"
+            :value="data.telemetryBatteryCharge"
             :maxValue="100"
             :segmentColors='["#e51f1f", "#f7e379", "#44ce1b", "#44ce1b", "#44ce1b"]'
             :paddingVertical="15"
-            valueTextFontSize="10vh"
+            currentValueText="Batterie Télémétrie: ${value}%"
+            valueTextFontSize="3vh"
             valueTextFontWeight="500"
             ></VueSpeedometer>
-            
+            <VueSpeedometer
+            dimensionUnit="px"
+            :width="250"
+            :height="150"
+            :maxSegmentLabels="5"
+            :segments="5"
+            :needleHeightRatio="0.5"
+            :value="data.auxBatteryCharge"
+            :maxValue="100"
+            :segmentColors='["#e51f1f", "#f7e379", "#44ce1b", "#44ce1b", "#44ce1b"]'
+            :paddingVertical="15"
+            currentValueText="Batterie Auxiliaire: ${value}%"
+            valueTextFontSize="3vh"
+            valueTextFontWeight="500"
+            ></VueSpeedometer>
         </div>
     </div>
 </template>
@@ -41,7 +41,7 @@
 import VueSpeedometer from "vue-speedometer"
 
 export default {
-  name: 'TelemetryComponent',
+  name: 'BatteryGaugesComponent',
   props: {
     data: {
         type: Object,
@@ -70,7 +70,7 @@ export default {
     color: #313239;
 }
 
-#telemetry {
+#gauges {
     width: 100%;
     display: flex;
     flex-direction: row;

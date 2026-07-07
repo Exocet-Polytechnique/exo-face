@@ -1,21 +1,17 @@
 <template>
     <div id="container">
-        <h1 id="title">Batteries</h1>
-        <table id="battery-table">
+        <h1 id="title">Alertes</h1>
+        <table id="alerts-table">
             <thead>
-                <tr id="battery-table-header">
-                    <th>Module</th>
-                    <th>Voltage(V)</th>
-                    <th>Courant(A)</th>
-                    <th>Temp.(°C)</th>
+                <tr id="alerts-table-header">
+                    <th>PCB</th>
+                    <th>Alerte</th>
                 </tr>
             </thead>
             <tbody>
-                <tr v-for="row in data" :key="row.id ">
-                    <td>{{ row.id }}</td>
-                    <td>{{ row.voltage }}</td>
-                    <td>{{ row.current }}</td>
-                    <td>{{ row.temperature }}</td>
+                <tr v-for="pcb in data" :key="pcb.name" :class="rowClass(pcb.alert)">
+                    <td>{{ pcb.name }}</td>
+                    <td>{{ pcb.alert ? pcb.alert.title : 'Aucune alerte' }}</td>
                 </tr>
             </tbody>
         </table>
@@ -25,11 +21,16 @@
 <script>
 
 export default {
-  name: 'BatteryComponent',
+  name: 'AlertsComponent',
   props: {
     data: {
         type: Array,
         required: true
+    }
+  },
+  methods: {
+    rowClass(alert) {
+      return alert ? alert.severity : '';
     }
   }
 }
@@ -49,12 +50,12 @@ export default {
     color: #313239;
 }
 
-#battery-table {
+#alerts-table {
   width: 100%;
   border-collapse: collapse;
 }
 
-#battery-table th {
+#alerts-table th {
   padding-top: 0.3vh;
   padding-left: 0.3vh;
   padding-bottom: 0.3vh;
@@ -63,14 +64,19 @@ export default {
   font-size: 5vh;
 }
 
-#battery-table-header {
+#alerts-table-header {
     background-color: #c12736;
 }
-.danger {
-    background-color: #fe7e44;
+
+.warning {
+    background-color: #f7e379;
+}
+.error {
+    background-color: #e51f1f;
+    color: white;
 }
 
-#battery-table td {
+#alerts-table td {
   padding-top: 0.3vh;
   padding-left: 0.3vh;
   padding-bottom: 0.3vh;

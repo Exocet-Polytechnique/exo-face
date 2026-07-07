@@ -2,10 +2,10 @@
   <div id="app">
     <div id="grid-container" class="grid-item">
       <div id="telemetry-card" class="grid-item">
-        <TelemetryComponent :data="telemetryData"/>
+        <BatteryGaugesComponent :data="batteryGauges"/>
       </div>
       <div id="battery-card">
-        <BatteryComponent :data="batteryData"/>
+        <AlertsComponent :data="pcbStatus"/>
       </div>
     </div>
 
@@ -14,21 +14,21 @@
 
 <script>
 
-import BatteryComponent from './components/Battery.vue';
-import TelemetryComponent from './components/Telemetry.vue';
+import AlertsComponent from './components/Alerts.vue';
+import BatteryGaugesComponent from './components/BatteryGauges.vue';
 import { setupLogCapture } from './logCapture';
 
 export default {
   name: 'App',
   components: {
-    BatteryComponent,
-    TelemetryComponent
+    AlertsComponent,
+    BatteryGaugesComponent
   },
   data(){
     return{
-      batteryData: [],
+      pcbStatus: [],
       positionData:{latitude: null, longitude: null},
-      telemetryData:{speed: null, h2: null}
+      batteryGauges:{auxBatteryCharge: 0, telemetryBatteryCharge: 0}
     }
   },
   mounted(){
@@ -43,18 +43,11 @@ export default {
 
       const object = JSON.parse(event.data);
       // Mapping the received data
-      this.batteryData = object.modules
-        .filter((module) => module.id !== 0)
-        .map((module) => ({
-          id: module.id,
-          voltage: module.voltage,
-          current: module.current,
-          temperature: module.temperature.toFixed(1),
-        }));
+      this.pcbStatus = object.pcb_status;
 
-      this.telemetryData = {
-        speed: object.speed,
-        h2: object.hydrogen_level,
+      this.batteryGauges = {
+        auxBatteryCharge: object.aux_battery_charge,
+        telemetryBatteryCharge: object.telemetry_battery_charge,
       };
     }
 

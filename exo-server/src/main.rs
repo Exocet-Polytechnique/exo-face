@@ -23,7 +23,7 @@ mod dbc {
 // How often the WebSocket sender pushes a snapshot to the frontend
 const SEND_INTERVAL_MS: u64 = 1000;
 
-type SharedState = Arc<Mutex<BoatData>>;
+pub type SharedState = Arc<Mutex<BoatData>>;
 type LogSender = StdArc<Sender<(String, Value)>>;
 
 // --- Task: WebSocket sender & receiver — pushes JSON snapshot and receives frontend logs ---
@@ -130,7 +130,7 @@ fn rocket() -> _ {
     let log_tx_arc: LogSender = StdArc::new(log_tx);
 
     // start CAN receiver
-    tasks::can::spawn_can_receiver((*log_tx_arc).clone());
+    tasks::can::spawn_can_receiver((*log_tx_arc).clone(), Arc::clone(&state));
 
     rocket::build()
         .mount("/", routes![stream])
