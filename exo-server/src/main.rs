@@ -2,6 +2,7 @@
 extern crate rocket;
 
 use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicU8, Ordering};
 use rocket::futures::SinkExt;
 use socketcan::{CanFrame, CanSocket, EmbeddedFrame, Frame, Socket};
 use serde_json::Value;
@@ -13,80 +14,53 @@ use futures::stream::StreamExt;
 
 mod logging;
 mod ssh_uploader;
+mod orchestrator;
 
 mod boat_data;
-use boat_data::{BoatData, ModuleData};
+use boat_data::BoatData;
 
 mod dbc {
     #![allow(unused, non_snake_case, non_camel_case_types, clippy::all)]
     include!(concat!(env!("OUT_DIR"), "/dbc_gen.rs"));
 }
 
-// TODO: set these to the actual data_type values defined in your protocol
-mod dtype {
-    pub const SPEED: u8          = 0x01;
-    pub const HYDROGEN_LEVEL: u8 = 0x02;
-    pub const VOLTAGE: u8        = 0x10;
-    pub const CURRENT: u8        = 0x11;
-    pub const TEMPERATURE: u8    = 0x12;
-}
-
 // How often the WebSocket sender pushes a snapshot to the frontend
 const SEND_INTERVAL_MS: u64 = 1000;
+
+// How often the dashboard broadcasts its own CurrentState (LP_PCB05_P M1) as a liveness heartbeat.
+const HEARTBEAT_INTERVAL_MS: u64 = 500;
 
 type SharedState = Arc<Mutex<BoatData>>;
 type LogSender = StdArc<Sender<(String, Value)>>;
 
-// Extract (dest_module, data_type, raw_data) only from d-frames; returns None for all other variants.
-fn extract_d_frame(msg: dbc::Messages) -> Option<(u8, u8, u32)> {
-    match msg {
-        dbc::Messages::FrameP0d(m) => Some((m.dest_module_raw(), m.data_type_raw(), m.data_raw() as u32)),
-        dbc::Messages::FrameP1d(m) => Some((m.dest_module_raw(), m.data_type_raw(), m.data_raw() as u32)),
-        dbc::Messages::FrameP2d(m) => Some((m.dest_module_raw(), m.data_type_raw(), m.data_raw() as u32)),
-        dbc::Messages::FrameP3d(m) => Some((m.dest_module_raw(), m.data_type_raw(), m.data_raw() as u32)),
-        dbc::Messages::FrameP4d(m) => Some((m.dest_module_raw(), m.data_type_raw(), m.data_raw() as u32)),
-        dbc::Messages::FrameP5d(m) => Some((m.dest_module_raw(), m.data_type_raw(), m.data_raw() as u32)),
-        dbc::Messages::FrameP6d(m) => Some((m.dest_module_raw(), m.data_type_raw(), m.data_raw() as u32)),
-        dbc::Messages::FrameP7d(m) => Some((m.dest_module_raw(), m.data_type_raw(), m.data_raw() as u32)),
-        dbc::Messages::FrameP8d(m) => Some((m.dest_module_raw(), m.data_type_raw(), m.data_raw() as u32)),
-        _ => None,
-    }
+fn log_rx_event(log_tx: &Sender<(String, Value)>, uptime_ms: u128, event: &orchestrator::CanRxEvent) {
+    use orchestrator::CanRxEvent::*;
+    let msg = match event {
+        Error { source, critical, code } => format!(
+            "CAN {} from {:?}: code=0x{:X}",
+            if *critical { "ERROR" } else { "warning" }, source, code
+        ),
+        ProcedureStatus { source, status_raw, kind_raw } => format!(
+            "CAN procedure status from {:?}: status=0x{:X} kind=0x{:X}", source, status_raw, kind_raw
+        ),
+        ProcedureState { source, state_raw } => format!(
+            "CAN state from {:?}: state=0x{:X}", source, state_raw
+        ),
+        ProcedureCommand { source, target, command_raw } => format!(
+            "CAN command from {:?} to {:?}: command=0x{:X}", source, target, command_raw
+        ),
+        Data { source } => format!("CAN data frame from {:?}", source),
+    };
+    let level = if matches!(event, Error { critical: true, .. }) { "error" } else { "info" };
+    let _ = log_tx.blocking_send((level.to_string(), serde_json::json!({"uptime_ms": uptime_ms, "msg": msg})));
 }
 
-// Apply a decoded d-frame to the shared BoatData.
-// dest_module is 1-indexed; module 0 carries global boat data.
-// TODO: adjust the f64/f32 bit reinterpretation if your protocol uses a different encoding.
-fn apply_d_frame(state: &mut BoatData, dest_module: u8, data_type: u8, raw: u32) {
-    info!("{}", raw);
-    match (dest_module, data_type) {
-        (0, dtype::SPEED) => state.speed = f32::from_bits(raw) as u32,
-        (0, dtype::HYDROGEN_LEVEL) => state.hydrogen_level = f32::from_bits(raw) as u32,
-        (module, dtype::VOLTAGE) | (module, dtype::CURRENT) | (module, dtype::TEMPERATURE) => {
-            let idx = module as usize;
-            if idx == 0 { return; }
-            // Grow the Vec so slot `idx` exists; each slot's id equals its Module enum value
-            while state.modules.len() <= idx {
-                let id: u32 = state.modules.len() as u32;
-                state.modules.push(ModuleData { id, ..ModuleData::default() });
-            }
-            let m = &mut state.modules[idx];
-            match data_type {
-                dtype::VOLTAGE     => m.voltage = f32::from_bits(raw),
-                dtype::CURRENT     => m.current = f32::from_bits(raw),
-                dtype::TEMPERATURE => m.temperature = f32::from_bits(raw),
-                _ => {}
-            }
-        }
-        _ => {}
-    }
-}
-
-// --- Task 1 (CAN receiver thread): reads d-frames and updates shared state ---
-fn spawn_can_receiver(state: SharedState, log_tx: Sender<(String, Value)>) {
+// --- Task 1 (CAN receiver thread): reads all frames, reacts to the Cockpit start/shutdown handshake ---
+fn spawn_can_receiver(log_tx: Sender<(String, Value)>, boat_state: Arc<AtomicU8>) {
     std::thread::spawn(move || {
         let socket = CanSocket::open("can0").expect("Failed to open can0");
         let start = std::time::Instant::now();
-        let msg = "CAN receiver: listening on can0 for d-frames...";
+        let msg = "CAN receiver: listening on can0...";
         eprintln!("{}", msg);
         let _ = log_tx.blocking_send(("info".to_string(), serde_json::json!({"msg": msg})));
 
@@ -95,14 +69,30 @@ fn spawn_can_receiver(state: SharedState, log_tx: Sender<(String, Value)>) {
                 Ok(CanFrame::Data(frame)) => {
                     let id = frame.raw_id();
                     if let Ok(msg) = dbc::Messages::from_can_message(id, frame.data()) {
-                        if let Some((dest_module, data_type, raw)) = extract_d_frame(msg) {
-                            let uptime_ms = start.elapsed().as_millis();
-                            let _ = log_tx.blocking_send(("info".to_string(), serde_json::json!({
-                                "uptime_ms": uptime_ms,
-                                "msg": format!("CAN frame: id=0x{:X} dest_module={} data_type=0x{:02X} raw=0x{:X}", id, dest_module, data_type, raw)
-                            })));
-                            let mut s = state.lock().unwrap();
-                            apply_d_frame(&mut s, dest_module, data_type, raw);
+                        if let Some(event) = orchestrator::categorize(msg) {
+                            log_rx_event(&log_tx, start.elapsed().as_millis(), &event);
+
+                            if let orchestrator::CanRxEvent::ProcedureCommand { source, target, command_raw } = event {
+                                let addressed_to_us = matches!(target, orchestrator::Module::DriverInterface | orchestrator::Module::Broadcast);
+                                if source == orchestrator::Module::Cockpit && addressed_to_us {
+                                    let reply_state = match command_raw {
+                                        orchestrator::command::START => Some(orchestrator::state::STARTED),
+                                        orchestrator::command::SHUTDOWN => Some(orchestrator::state::IDLE),
+                                        _ => None,
+                                    };
+                                    if let Some(reply_state) = reply_state {
+                                        // Store immediately so the heartbeat thread picks it up even if
+                                        // this direct reply is lost; also send right away for a fast ack
+                                        // instead of waiting up to HEARTBEAT_INTERVAL_MS for the next tick.
+                                        boat_state.store(reply_state, Ordering::Relaxed);
+                                        if let Err(e) = orchestrator::send_state(&socket, reply_state) {
+                                            let _ = log_tx.blocking_send(("error".to_string(), serde_json::json!({
+                                                "msg": format!("Orchestrator: failed to send state reply: {}", e)
+                                            })));
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -113,6 +103,23 @@ fn spawn_can_receiver(state: SharedState, log_tx: Sender<(String, Value)>) {
                     let _ = log_tx.blocking_send(("error".to_string(), serde_json::json!({"msg": msg})));
                 }
             }
+        }
+    });
+}
+
+// --- Task 1b (heartbeat thread): periodically broadcasts our own CurrentState (LP_PCB05_P M1)
+// so every PCB can tell the dashboard is alive and knows the current boat mode.
+fn spawn_heartbeat(boat_state: Arc<AtomicU8>, log_tx: Sender<(String, Value)>) {
+    std::thread::spawn(move || {
+        let socket = CanSocket::open("can0").expect("Failed to open can0 (heartbeat)");
+        loop {
+            let state = boat_state.load(Ordering::Relaxed);
+            if let Err(e) = orchestrator::send_state(&socket, state) {
+                let _ = log_tx.blocking_send(("error".to_string(), serde_json::json!({
+                    "msg": format!("Heartbeat: failed to send state: {}", e)
+                })));
+            }
+            std::thread::sleep(std::time::Duration::from_millis(HEARTBEAT_INTERVAL_MS));
         }
     });
 }
@@ -164,15 +171,7 @@ fn stream(ws: ws::WebSocket, state: &rocket::State<SharedState>, log_tx: &rocket
 #[launch]
 fn rocket() -> _ {
     let state: SharedState = Arc::new(Mutex::new(BoatData::default()));
-
-
-    // // inject test data
-    // {
-    //     let mut s = state.lock().unwrap();
-    //     apply_d_frame(&mut s, 0, dtype::SPEED, f64::to_bits(42.5));
-    //     apply_d_frame(&mut s, 1, dtype::VOLTAGE, 3700);
-    //     apply_d_frame(&mut s, 1, dtype::TEMPERATURE, f32::to_bits(25.3) as u64);
-    // }
+    let boat_state = Arc::new(AtomicU8::new(orchestrator::state::IDLE));
 
     // --- Setup async logging and uploader workers in a separate tokio runtime ---
     let (log_tx, log_rx) = tokio::sync::mpsc::channel::<(String, Value)>(1024);
@@ -229,24 +228,12 @@ fn rocket() -> _ {
     // Wrap log_tx in Arc for Rocket management
     let log_tx_arc: LogSender = StdArc::new(log_tx);
 
-    // start CAN receiver and pass the log sender
-    spawn_can_receiver(Arc::clone(&state), (*log_tx_arc).clone());
+    // start CAN receiver and the heartbeat broadcaster, sharing the current boat state between them
+    spawn_can_receiver((*log_tx_arc).clone(), Arc::clone(&boat_state));
+    spawn_heartbeat(boat_state, (*log_tx_arc).clone());
 
     rocket::build()
         .mount("/", routes![stream])
         .manage(state)
         .manage(log_tx_arc)
 }
-
-
-enum Module {
-    Broadcast = 0b1111,
-    Cockpit = 0b0000,
-    Hydrogen = 0b0001,
-    HighPower = 0b0010,
-    Sensors = 0b0011,
-    CoolingSystem = 0b0100,
-    IsolationControl = 0b0101,
-    Dashboard = 0b0110,
-    Telemetry = 0b0111,
-} 
