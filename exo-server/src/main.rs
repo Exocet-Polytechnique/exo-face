@@ -28,7 +28,7 @@ mod dbc {
 const SEND_INTERVAL_MS: u64 = 1000;
 
 // How often the dashboard broadcasts its own CurrentState (LP_PCB05_P M1) as a liveness heartbeat.
-const HEARTBEAT_INTERVAL_MS: u64 = 500;
+const HEARTBEAT_INTERVAL_MS: u64 = 2000;
 
 type SharedState = Arc<Mutex<BoatData>>;
 type LogSender = StdArc<Sender<(String, Value)>>;
@@ -74,6 +74,7 @@ fn spawn_can_receiver(log_tx: Sender<(String, Value)>, boat_state: Arc<AtomicU8>
 
                             if let orchestrator::CanRxEvent::ProcedureCommand { source, target, command_raw } = event {
                                 let addressed_to_us = matches!(target, orchestrator::Module::DriverInterface | orchestrator::Module::Broadcast);
+                                // If the command is addressed to the DriverInterface or is a broadcast
                                 if source == orchestrator::Module::Cockpit && addressed_to_us {
                                     let reply_state = match command_raw {
                                         orchestrator::command::START => Some(orchestrator::state::STARTED),
