@@ -1,14 +1,11 @@
 <template>
   <div id="app">
     <div id="grid-container" class="grid-item">
-      <div id="battery-card">
-        <BatteryComponent :data="batteryData"/>
-      </div>
       <div id="telemetry-card" class="grid-item">
         <TelemetryComponent :data="telemetryData"/>
       </div>
-      <div id="position-card" class="grid-item">
-        <PositionComponent/>
+      <div id="battery-card">
+        <BatteryComponent :data="batteryData"/>
       </div>
     </div>
 
@@ -18,7 +15,6 @@
 <script>
 
 import BatteryComponent from './components/Battery.vue';
-import PositionComponent from './components/Position.vue';
 import TelemetryComponent from './components/Telemetry.vue';
 import { setupLogCapture } from './logCapture';
 
@@ -26,7 +22,6 @@ export default {
   name: 'App',
   components: {
     BatteryComponent,
-    PositionComponent,
     TelemetryComponent
   },
   data(){
@@ -89,8 +84,8 @@ body {
 
 #grid-container {
   display: grid;
-  grid-template-columns: 1fr 1fr 2fr;
-  grid-template-rows: 1fr 2fr;
+  grid-template-columns: 1fr;
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
   column-gap: 1vh;
   row-gap: 1vh;
   height: 98vh;
@@ -98,19 +93,12 @@ body {
 
 #battery-card {
   background-color: white;
-  grid-column: 1 / 4;
-  grid-row: 2 / 3; 
+  grid-column: 1 / 2;
+  grid-row: 2 / 3;
   border-radius: 10px;
 }
 
 #telemetry-card {
-  background-color: white;
-  grid-column: 2 / 4;
-  grid-row: 1 / 2;
-  border-radius: 10px;
-}
-
-#position-card {
   background-color: white;
   grid-column: 1 / 2;
   grid-row: 1 / 2;
