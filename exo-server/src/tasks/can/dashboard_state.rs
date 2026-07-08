@@ -14,22 +14,25 @@ fn display_name(m: Module) -> &'static str {
     }
 }
 
-// Human-readable titles for every (source, critical, code) combination defined in
-// exo_can.dbc's ErrorType/WarningType VAL_ tables (Hydrogen omitted — no longer used).
+// Human-readable titles for every (source, critical, code) combination.
+// Code convention: 0x{PCB}{seq} — PCB is the sender's Module number (Cockpit=1,
+// TelemetryBattery=3, HighPower=4, DriverInterface=5; Hydrogen=2 unused). Within a PCB's
+// range, 0x_000-0x_299 are errors (critical, red in the UI) and 0x_300+ are warnings
+// (yellow) — this replaces the dbc's stale VAL_ tables, which used small sequential values
+// that don't match what HighPower's real firmware (or anything else, going forward) sends.
 fn error_title(source: Module, critical: bool, code: u16) -> &'static str {
     match (source, critical, code) {
-        (Module::Cockpit, true, 0) => "Défaut du bus CAN",
-        (Module::Cockpit, true, 1) => "Défaut matériel",
-        (Module::Cockpit, false, 0) => "Délai CAN dépassé",
+        (Module::Cockpit, true, 0x1000) => "Défaut du bus CAN",
+        (Module::Cockpit, true, 0x1001) => "Défaut matériel",
+        (Module::Cockpit, true, 0x1002) => "Délai de confirmation dépassé",
 
-        (Module::TelemetryBattery, true, 0) => "Défaut de la batterie",
-        (Module::TelemetryBattery, true, 1) => "Surchauffe",
-        (Module::TelemetryBattery, true, 2) => "Défaut du commutateur d'alimentation",
-        (Module::TelemetryBattery, false, 0) => "Charge faible",
-        (Module::TelemetryBattery, false, 1) => "Avertissement de température",
+        (Module::TelemetryBattery, true, 0x3000) => "Défaut de la batterie",
+        (Module::TelemetryBattery, true, 0x3001) => "Surchauffe",
+        (Module::TelemetryBattery, true, 0x3002) => "Défaut du commutateur d'alimentation",
+        (Module::TelemetryBattery, false, 0x3300) => "Charge faible",
+        (Module::TelemetryBattery, false, 0x3301) => "Avertissement de température",
 
-        // HighPower's real firmware ErrorType/WarningType — the dbc's VAL_ table (0..5 / 0..3)
-        // is stale and doesn't match what's actually transmitted.
+        // HighPower's real firmware ErrorType/WarningType — already follows this convention.
         (Module::HighPower, true, 0x4000) => "Capteur de température (batterie auxiliaire) manquant",
         (Module::HighPower, true, 0x4001) => "Capteur de température (batterie auxiliaire) déconnecté",
         (Module::HighPower, true, 0x4002) => "Température de la batterie auxiliaire trop élevée",
@@ -39,9 +42,9 @@ fn error_title(source: Module, critical: bool, code: u16) -> &'static str {
         (Module::HighPower, false, 0x4301) => "Retirer le DMS",
         (Module::HighPower, false, 0x4302) => "Insérer le DMS",
 
-        (Module::DriverInterface, true, 0) => "Défaut système",
-        (Module::DriverInterface, true, 1) => "Défaut CAN",
-        (Module::DriverInterface, false, 0) => "Avertissement de communication",
+        (Module::DriverInterface, true, 0x5000) => "Défaut système",
+        (Module::DriverInterface, true, 0x5001) => "Défaut CAN",
+        (Module::DriverInterface, false, 0x5300) => "Avertissement de communication",
 
         _ => "Erreur inconnue",
     }

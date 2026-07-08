@@ -40,9 +40,10 @@ pub mod state {
     pub const SHUTTING_DOWN: u8 = 3;
 }
 
-// Raw values of the `ErrorType` signal (HP_PCBnn_E), per exo_can.dbc's VAL_ table.
+// Our own ErrorType codes on HP_PCB05_E (we're PCB 5 — DriverInterfaceHAT). See the code
+// convention note on `error_title` in dashboard_state.rs.
 pub mod error {
     #[allow(dead_code)]
-    pub const SYSTEM_FAULT: u16 = 0;
-    pub const CAN_FAULT: u16 = 1;
+    pub const SYSTEM_FAULT: u16 = 0x5000;
+    pub const CAN_FAULT: u16 = 0x5001;
 }
