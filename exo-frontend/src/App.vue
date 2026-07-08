@@ -28,7 +28,14 @@ export default {
     return{
       pcbStatus: [],
       positionData:{latitude: null, longitude: null},
-      batteryGauges:{auxBatteryCharge: 0, telemetryBatteryCharge: 0}
+      batteryGauges:{
+        auxBatteryCharge: 0,
+        telemetryBatteryCharge: 0,
+        telemetryBatteryVoltage: 0,
+        telemetryBatteryCurrent: 0,
+        telemetryBatteryPower: 0,
+        telemetryBatteryTemperature: 0,
+      }
     }
   },
   mounted(){
@@ -48,6 +55,10 @@ export default {
       this.batteryGauges = {
         auxBatteryCharge: object.aux_battery_charge,
         telemetryBatteryCharge: object.telemetry_battery_charge,
+        telemetryBatteryVoltage: object.telemetry_battery_voltage,
+        telemetryBatteryCurrent: object.telemetry_battery_current,
+        telemetryBatteryPower: object.telemetry_battery_power,
+        telemetryBatteryTemperature: object.telemetry_battery_temperature,
       };
     }
 

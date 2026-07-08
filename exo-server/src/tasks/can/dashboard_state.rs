@@ -68,8 +68,18 @@ pub fn update_alert(state: &SharedState, source: Module, critical: bool, code: u
 // real signal is added.
 pub fn update_battery_gauges(state: &SharedState, msg: &mut dbc::Messages) {
     if let dbc::Messages::LpPcb03D(m) = msg {
-        if let Ok(dbc::LpPcb03DSensor::M0(s)) = m.sensor() {
-            state.lock().unwrap().telemetry_battery_charge = s.batt_so_c() as f32 / 255.0 * 100.0;
+        match m.sensor() {
+            Ok(dbc::LpPcb03DSensor::M0(s)) => {
+                let mut data = state.lock().unwrap();
+                data.telemetry_battery_charge = s.batt_so_c() as f32 / 255.0 * 100.0;
+                data.telemetry_battery_voltage = s.batt_voltage();
+                data.telemetry_battery_current = s.batt_current();
+                data.telemetry_battery_power = s.batt_power();
+            }
+            Ok(dbc::LpPcb03DSensor::M1(s)) => {
+                state.lock().unwrap().telemetry_battery_temperature = s.telemetry_batt_temperature();
+            }
+            _ => {}
         }
     }
 }

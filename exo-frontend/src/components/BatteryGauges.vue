@@ -33,6 +33,12 @@
             valueTextFontWeight="500"
             ></VueSpeedometer>
         </div>
+        <div id="details">
+            <span>Tension: {{ data.telemetryBatteryVoltage?.toFixed(2) ?? '--' }} V</span>
+            <span>Courant: {{ data.telemetryBatteryCurrent?.toFixed(2) ?? '--' }} A</span>
+            <span>Puissance: {{ data.telemetryBatteryPower?.toFixed(1) ?? '--' }} W</span>
+            <span>Température: {{ data.telemetryBatteryTemperature?.toFixed(1) ?? '--' }} °C</span>
+        </div>
     </div>
 </template>
 
@@ -76,6 +82,16 @@ export default {
     flex-direction: row;
     justify-content: space-evenly;
     align-items: center;
+}
+
+#details {
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-evenly;
+    color: #313239;
+    font-size: 2vh;
+    padding: 1vh 0;
 }
 
 </style>

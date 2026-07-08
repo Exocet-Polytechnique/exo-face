@@ -18,6 +18,10 @@ pub struct BoatData {
     // signal yet (only AuxBatteryTemperature exists, which is a different quantity).
     pub aux_battery_charge: f32, // 0-100
     pub telemetry_battery_charge: f32, // 0-100
+    pub telemetry_battery_voltage: f32, // V
+    pub telemetry_battery_current: f32, // A, + = charging, - = discharging
+    pub telemetry_battery_power: f32, // W
+    pub telemetry_battery_temperature: f32, // °C
     pub pcb_status: Vec<PcbStatus>,
 }
 
@@ -27,6 +31,10 @@ impl Default for BoatData {
         BoatData {
             aux_battery_charge: 0.0,
             telemetry_battery_charge: 0.0,
+            telemetry_battery_voltage: 0.0,
+            telemetry_battery_current: 0.0,
+            telemetry_battery_power: 0.0,
+            telemetry_battery_temperature: 0.0,
             pcb_status: names.iter().map(|name| PcbStatus { name: name.to_string(), alert: None }).collect(),
         }
     }
