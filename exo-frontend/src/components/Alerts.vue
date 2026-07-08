@@ -74,6 +74,13 @@ export default {
 .error {
     background-color: #e51f1f;
     color: white;
+    animation: blink-error 1s step-start infinite;
+}
+
+@keyframes blink-error {
+    50% {
+        background-color: #7a0000;
+    }
 }
 
 #alerts-table td {
