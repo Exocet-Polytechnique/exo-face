@@ -13,6 +13,7 @@
             :maxValue="100"
             :segmentColors='["#e51f1f", "#f7e379", "#44ce1b", "#44ce1b", "#44ce1b"]'
             :paddingVertical="15"
+            valueFormat=".1f"
             currentValueText="Batterie Télémétrie: ${value}%"
             valueTextFontSize="3vh"
             valueTextFontWeight="500"
@@ -28,6 +29,7 @@
             :maxValue="100"
             :segmentColors='["#e51f1f", "#f7e379", "#44ce1b", "#44ce1b", "#44ce1b"]'
             :paddingVertical="15"
+            valueFormat=".1f"
             currentValueText="Batterie Auxiliaire: ${value}%"
             valueTextFontSize="3vh"
             valueTextFontWeight="500"
