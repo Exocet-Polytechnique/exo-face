@@ -17,6 +17,10 @@ pub struct BoatData {
     // Not yet fed by any CAN signal — exo_can.dbc doesn't define an aux battery charge
     // signal yet (only AuxBatteryTemperature exists, which is a different quantity).
     pub aux_battery_charge: f32, // 0-100
+    pub aux_battery_temperature: f32, // °C — real signal (HighPower's AuxBatteryTemperature)
+    // Not yet fed by any CAN signal — exo_can.dbc has no aux battery power/current/voltage
+    // signal at all (HighPower's D-frame only reports AuxBatteryTemperature for it).
+    pub aux_battery_power: f32, // W
     pub telemetry_battery_charge: f32, // 0-100
     pub telemetry_battery_voltage: f32, // V
     pub telemetry_battery_current: f32, // A, + = charging, - = discharging
@@ -30,6 +34,8 @@ impl Default for BoatData {
         let names = ["Cockpit", "Batterie de Télémétrie", "Haute Puissance", "Interface Pilote"];
         BoatData {
             aux_battery_charge: 0.0,
+            aux_battery_temperature: 0.0,
+            aux_battery_power: 0.0,
             telemetry_battery_charge: 0.0,
             telemetry_battery_voltage: 0.0,
             telemetry_battery_current: 0.0,

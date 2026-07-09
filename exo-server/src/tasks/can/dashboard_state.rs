@@ -63,12 +63,12 @@ pub fn update_alert(state: &SharedState, source: Module, critical: bool, code: u
 
 // Decodes the battery signals the UI cares about straight off the raw message, since
 // `categorize` only tags data frames with their source, not their decoded content.
-// Aux battery charge has no CAN signal yet — exo_can.dbc only defines AuxBatteryTemperature
-// for that PCB, a different quantity — so `aux_battery_charge` stays at its default until a
-// real signal is added.
+// Aux battery charge/power have no CAN signal yet — exo_can.dbc only defines
+// AuxBatteryTemperature for HighPower's D-frame, so `aux_battery_charge`/`aux_battery_power`
+// stay at their default until real signals are added.
 pub fn update_battery_gauges(state: &SharedState, msg: &mut dbc::Messages) {
-    if let dbc::Messages::LpPcb03D(m) = msg {
-        match m.sensor() {
+    match msg {
+        dbc::Messages::LpPcb03D(m) => match m.sensor() {
             Ok(dbc::LpPcb03DSensor::M0(s)) => {
                 let mut data = state.lock().unwrap();
                 data.telemetry_battery_charge = s.batt_so_c() as f32 / 255.0 * 100.0;
@@ -80,6 +80,12 @@ pub fn update_battery_gauges(state: &SharedState, msg: &mut dbc::Messages) {
                 state.lock().unwrap().telemetry_battery_temperature = s.telemetry_batt_temperature();
             }
             _ => {}
+        },
+        dbc::Messages::LpPcb04D(m) => {
+            if let Ok(dbc::LpPcb04DSensor::M0(s)) = m.sensor() {
+                state.lock().unwrap().aux_battery_temperature = s.aux_battery_temperature();
+            }
         }
+        _ => {}
     }
 }

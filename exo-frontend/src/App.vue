@@ -30,6 +30,8 @@ export default {
       positionData:{latitude: null, longitude: null},
       batteryGauges:{
         auxBatteryCharge: 0,
+        auxBatteryTemperature: 0,
+        auxBatteryPower: 0,
         telemetryBatteryCharge: 0,
         telemetryBatteryVoltage: 0,
         telemetryBatteryCurrent: 0,
@@ -54,6 +56,8 @@ export default {
 
       this.batteryGauges = {
         auxBatteryCharge: object.aux_battery_charge,
+        auxBatteryTemperature: object.aux_battery_temperature,
+        auxBatteryPower: object.aux_battery_power,
         telemetryBatteryCharge: object.telemetry_battery_charge,
         telemetryBatteryVoltage: object.telemetry_battery_voltage,
         telemetryBatteryCurrent: object.telemetry_battery_current,
