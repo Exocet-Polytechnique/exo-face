@@ -26,6 +26,7 @@ pub struct BoatData {
     pub telemetry_battery_current: f32, // A, + = charging, - = discharging
     pub telemetry_battery_power: f32, // W
     pub telemetry_battery_temperature: f32, // °C
+    pub boat_state: u8, // raw CurrentState value: Idle=0, Starting=1, Started=2, ShuttingDown=3
     pub pcb_status: Vec<PcbStatus>,
 }
 
@@ -41,6 +42,7 @@ impl Default for BoatData {
             telemetry_battery_current: 0.0,
             telemetry_battery_power: 0.0,
             telemetry_battery_temperature: 0.0,
+            boat_state: 0, // Idle
             pcb_status: names.iter().map(|name| PcbStatus { name: name.to_string(), alert: None }).collect(),
         }
     }

@@ -5,8 +5,8 @@
             <div class="gauge-block">
                 <VueSpeedometer
                 dimensionUnit="px"
-                :width="250"
-                :height="150"
+                :width="220"
+                :height="132"
                 :maxSegmentLabels="5"
                 :segments="5"
                 :needleHeightRatio="0.5"
@@ -15,13 +15,11 @@
                 :segmentColors='["#e51f1f", "#f7e379", "#44ce1b", "#44ce1b", "#44ce1b"]'
                 :paddingVertical="15"
                 valueFormat=".1f"
-                currentValueText="Batterie Télémétrie: ${value}%"
-                valueTextFontSize="3vh"
-                valueTextFontWeight="500"
+                currentValueText=""
                 ></VueSpeedometer>
                 <div class="details">
-                    <span>Tension: {{ data.telemetryBatteryVoltage?.toFixed(2) ?? '--' }} V</span>
-                    <span>Courant: {{ data.telemetryBatteryCurrent?.toFixed(2) ?? '--' }} A</span>
+                    <span>Batterie Télémétrie</span>
+                    <span>Charge: {{ data.telemetryBatteryCharge?.toFixed(1) ?? '--' }} %</span>
                     <span>Puissance: {{ data.telemetryBatteryPower?.toFixed(1) ?? '--' }} W</span>
                     <span>Température: {{ data.telemetryBatteryTemperature?.toFixed(1) ?? '--' }} °C</span>
                 </div>
@@ -29,8 +27,8 @@
             <div class="gauge-block">
                 <VueSpeedometer
                 dimensionUnit="px"
-                :width="250"
-                :height="150"
+                :width="220"
+                :height="132"
                 :maxSegmentLabels="5"
                 :segments="5"
                 :needleHeightRatio="0.5"
@@ -39,11 +37,11 @@
                 :segmentColors='["#e51f1f", "#f7e379", "#44ce1b", "#44ce1b", "#44ce1b"]'
                 :paddingVertical="15"
                 valueFormat=".1f"
-                currentValueText="Batterie Auxiliaire: ${value}%"
-                valueTextFontSize="3vh"
-                valueTextFontWeight="500"
+                currentValueText=""
                 ></VueSpeedometer>
                 <div class="details">
+                    <span>Batterie Auxiliaire</span>
+                    <span>Charge: {{ data.auxBatteryCharge?.toFixed(1) ?? '--' }} %</span>
                     <span>Puissance: {{ data.auxBatteryPower?.toFixed(1) ?? '--' }} W</span>
                     <span>Température: {{ data.auxBatteryTemperature?.toFixed(1) ?? '--' }} °C</span>
                 </div>
@@ -70,7 +68,7 @@ export default {
 }
 </script>
 
-<style>
+<style scoped>
 
 #container {
   display: flex;
@@ -88,24 +86,31 @@ export default {
 
 #gauges {
     width: 100%;
+    flex: 1;
     display: flex;
     flex-direction: row;
     justify-content: space-evenly;
-    align-items: flex-start;
+    align-items: center;
 }
 
 .gauge-block {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
+    gap: 3vh;
 }
 
 .details {
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: flex-start;
     color: #313239;
-    font-size: 2.2vh;
+    font-size: 4vh;
+}
+
+.details span:first-child {
+    font-weight: 700;
+    margin-bottom: 0.5vh;
 }
 
 </style>

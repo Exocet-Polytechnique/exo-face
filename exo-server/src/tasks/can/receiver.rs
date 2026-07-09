@@ -75,6 +75,11 @@ pub fn spawn_can_receiver(log_tx: Sender<(String, Value)>, state: SharedState) {
         let mut pending: Option<PendingConfirmation> = None;
         let mut boat_state: u8 = state::IDLE;
 
+        // Keeps the UI's boat-state box in sync with the orchestrator's local state.
+        let publish_boat_state = |shared: &SharedState, boat_state: u8| {
+            shared.lock().unwrap().boat_state = boat_state;
+        };
+
         loop {
             match socket.read_frame_timeout(std::time::Duration::from_millis(POLL_TICK_MS)) {
                 Ok(CanFrame::Data(frame)) => {
@@ -100,6 +105,7 @@ pub fn spawn_can_receiver(log_tx: Sender<(String, Value)>, state: SharedState) {
                                             // Every PCB has confirmed — only now does the boat
                                             // actually reach the target state.
                                             boat_state = p.expected_state;
+                                            publish_boat_state(&state, boat_state);
                                             if let Err(e) = send_state(&socket, boat_state) {
                                                 let _ = log_tx.blocking_send(("error".to_string(), serde_json::json!({
                                                     "msg": format!("Orchestrator: failed to announce state 0x{:X}: {}", boat_state, e)
@@ -134,6 +140,7 @@ pub fn spawn_can_receiver(log_tx: Sender<(String, Value)>, state: SharedState) {
                                             })));
                                         } else {
                                             boat_state = intermediate_state;
+                                            publish_boat_state(&state, boat_state);
                                             // Relay the same command to every other PCB we
                                             // orchestrate, so they actually act on it — the
                                             // one that originated the request already knows.
