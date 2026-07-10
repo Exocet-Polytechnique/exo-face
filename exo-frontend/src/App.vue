@@ -1,33 +1,23 @@
 <template>
   <div id="app">
-    <div id="grid-container" class="grid-item">
-      <div id="telemetry-card" class="grid-item">
-        <BatteryGaugesComponent :data="batteryGauges"/>
-      </div>
-      <div id="boat-state-card">
-        <BoatStateComponent :state="boatState"/>
-      </div>
-      <div id="battery-card">
-        <AlertsComponent :data="pcbStatus"/>
-      </div>
+    <div id="temperature-display">
+      <span 
+        id="temperature-value"
+        :class="{ 'temperature-alert': batteryGauges.auxBatteryTemperature > 54 }"
+      >
+        {{ batteryGauges.auxBatteryTemperature?.toFixed(1) ?? '--' }} °C
+      </span>
     </div>
-
   </div>
 </template>
 
 <script>
 
-import AlertsComponent from './components/Alerts.vue';
-import BatteryGaugesComponent from './components/BatteryGauges.vue';
-import BoatStateComponent from './components/BoatState.vue';
 import { setupLogCapture } from './logCapture';
 
 export default {
   name: 'App',
   components: {
-    AlertsComponent,
-    BatteryGaugesComponent,
-    BoatStateComponent
   },
   data(){
     return{
@@ -35,14 +25,7 @@ export default {
       boatState: 0,
       positionData:{latitude: null, longitude: null},
       batteryGauges:{
-        auxBatteryCharge: 0,
-        auxBatteryTemperature: 0,
-        auxBatteryPower: 0,
-        telemetryBatteryCharge: 0,
-        telemetryBatteryVoltage: 0,
-        telemetryBatteryCurrent: 0,
-        telemetryBatteryPower: 0,
-        telemetryBatteryTemperature: 0,
+        auxBatteryTemperature: 55,
       }
     }
   },
@@ -94,44 +77,57 @@ export default {
 <style>
 html, body {
   overflow: hidden;
+  margin: 0;
+  padding: 0;
 }
 
 body {
-  background-color: #313239;
-  margin: 1vh;
-}
-
-#grid-container {
-  display: grid;
-  grid-template-columns: 1fr;
-  grid-template-rows: minmax(0, 3fr) minmax(0, 1fr) minmax(0, 3fr);
-  column-gap: 1vh;
-  row-gap: 1vh;
-  height: 98vh;
-}
-
-#telemetry-card {
   background-color: white;
-  grid-column: 1 / 2;
-  grid-row: 1 / 2;
-  border-radius: 10px;
-  overflow: hidden;
 }
 
-#boat-state-card {
+#app {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
   background-color: white;
-  grid-column: 1 / 2;
-  grid-row: 2 / 3;
-  border-radius: 10px;
-  overflow: hidden;
 }
 
-#battery-card {
-  background-color: white;
-  grid-column: 1 / 2;
-  grid-row: 3 / 4;
-  border-radius: 10px;
-  overflow: hidden;
+#temperature-display {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
 }
 
+#temperature-value {
+  font-size: 35vh;
+  font-weight: bold;
+  color: black;
+  font-family: 'Courier New', monospace;
+  white-space: nowrap;
+}
+
+#temperature-unit {
+  font-size: 15vh;
+  color: black;
+  font-family: 'Courier New', monospace;
+}
+
+.temperature-alert {
+  color: red !important;
+  animation: blink 0.5s infinite;
+}
+
+@keyframes blink {
+  0%, 49% {
+    opacity: 1;
+  }
+  50%, 100% {
+    opacity: 0;
+  }
+}
 </style>

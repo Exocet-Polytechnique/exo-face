@@ -2,57 +2,13 @@
     <div id="container">
         <h1 id="title">Batteries</h1>
         <div id="gauges">
-            <div class="gauge-block">
-                <VueSpeedometer
-                dimensionUnit="px"
-                :width="220"
-                :height="132"
-                :maxSegmentLabels="5"
-                :segments="5"
-                :needleHeightRatio="0.5"
-                :value="data.telemetryBatteryCharge"
-                :maxValue="100"
-                :segmentColors='["#e51f1f", "#f7e379", "#44ce1b", "#44ce1b", "#44ce1b"]'
-                :paddingVertical="15"
-                valueFormat=".1f"
-                currentValueText=""
-                ></VueSpeedometer>
-                <div class="details">
-                    <span>Batterie Télémétrie</span>
-                    <span>Charge: {{ data.telemetryBatteryCharge?.toFixed(1) ?? '--' }} %</span>
-                    <span>Puissance: {{ data.telemetryBatteryPower?.toFixed(1) ?? '--' }} W</span>
-                    <span>Température: {{ data.telemetryBatteryTemperature?.toFixed(1) ?? '--' }} °C</span>
-                </div>
-            </div>
-            <div class="gauge-block">
-                <VueSpeedometer
-                dimensionUnit="px"
-                :width="220"
-                :height="132"
-                :maxSegmentLabels="5"
-                :segments="5"
-                :needleHeightRatio="0.5"
-                :value="data.auxBatteryCharge"
-                :maxValue="100"
-                :segmentColors='["#e51f1f", "#f7e379", "#44ce1b", "#44ce1b", "#44ce1b"]'
-                :paddingVertical="15"
-                valueFormat=".1f"
-                currentValueText=""
-                ></VueSpeedometer>
-                <div class="details">
-                    <span>Batterie Auxiliaire</span>
-                    <span>Charge: {{ data.auxBatteryCharge?.toFixed(1) ?? '--' }} %</span>
-                    <span>Puissance: {{ data.auxBatteryPower?.toFixed(1) ?? '--' }} W</span>
-                    <span>Température: {{ data.auxBatteryTemperature?.toFixed(1) ?? '--' }} °C</span>
-                </div>
-            </div>
+            <span> {{ data.auxBatteryTemperature?.toFixed(1) ?? '--' }} °C</span>
         </div>
     </div>
 </template>
 
 <script>
 
-import VueSpeedometer from "vue-speedometer"
 
 export default {
   name: 'BatteryGaugesComponent',
@@ -62,9 +18,6 @@ export default {
         required: true
     }
   },
-  components: {
-    VueSpeedometer
-  }
 }
 </script>
 
@@ -91,6 +44,7 @@ export default {
     flex-direction: row;
     justify-content: space-evenly;
     align-items: center;
+    font-size: 15vh;
 }
 
 .gauge-block {
