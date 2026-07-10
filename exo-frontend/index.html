@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <style>
+        html, body {
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: white;
+        }
+
+        #app {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: white;
+        }
+
+        #temperature-display {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+        }
+
+        #temperature-value {
+            font-size: 35vh;
+            font-weight: bold;
+            color: black;
+            font-family: 'Courier New', monospace;
+            white-space: nowrap;
+        }
+
+        .temperature-alert {
+            color: red !important;
+            animation: blink 0.5s infinite;
+        }
+
+        @keyframes blink {
+            0%, 49% { opacity: 1; }
+            50%, 100% { opacity: 0; }
+        }
+
+        #battery-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        #battery-title {
+            margin: 0.5vh;
+            padding: 0;
+            text-align: left;
+            font-size: 6vh;
+            color: #313239;
+        }
+
+        #gauges {
+            width: 100%;
+            flex: 1;
+            display: flex;
+            flex-direction: row;
+            justify-content: space-evenly;
+            align-items: center;
+            font-size: 15vh;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div id="temperature-display">
+            <span id="temperature-value">-- °C</span>
+        </div>
+    </div>x 
+
+    <script>
+        let auxBatteryTemperature = null;
+        let boatState = 0;
+        let pcbStatus = [];
+
+        const temperatureValue = document.getElementById('temperature-value');
+        const auxBatteryTemp = document.getElementById('aux-battery-temperature');
+
+        function updateUI() {
+            const temp = auxBatteryTemperature;
+            const tempStr = temp !== null ? temp.toFixed(1) + ' °C' : '-- °C';XMLDocumentx
+
+            temperatureValue.textContent = tempStr;
+            auxBatteryTemp.textContent = tempStr;
+
+            if (temp !== null && temp > 54) {
+                temperatureValue.classList.add('temperature-alert');
+            } else {
+                temperatureValue.classList.remove('temperature-alert');
+            }
+        }
+
+        const socket = new WebSocket('ws://127.0.0.1:8000/');
+
+        socket.onopen = () => {
+            socket.send('Ping');
+            console.log('Dashboard initialized and connected to server');
+        };
+
+        socket.onmessage = (event) => {
+            const object = JSON.parse(event.data);
+            pcbStatus = object.pcb_status;
+            boatState = object.boat_state;
+            auxBatteryTemperature = object.aux_battery_temperature;
+            updateUI();
+        };
+
+        socket.onerror = () => {
+            console.error('An error occurred while connecting to the WebSocket server.');
+        };
+
+        socket.onclose = () => {
+            console.log('Disconnected from the WebSocket server.');
+        };
+    </script>
+</body>
+</html>
